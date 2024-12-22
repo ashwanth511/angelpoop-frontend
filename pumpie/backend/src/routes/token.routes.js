@@ -3,14 +3,18 @@ const router = express.Router();
 const Token = require('../models/token.model');
 
 // Create a new token
-router.post('/create-agent', async (req, res) => {
+router.post('/create-token', async (req, res) => {
   try {
     const token = new Token(req.body);
     const savedToken = await token.save();
+    const tokenObj = savedToken.toObject();
     res.json({
       success: true,
       message: 'Token created successfully',
-      token: savedToken
+      token: {
+        ...tokenObj,
+        id: tokenObj._id
+      }
     });
   } catch (error) {
     console.error('Error creating token:', error);
@@ -27,7 +31,13 @@ router.get('/tokens', async (req, res) => {
     const tokens = await Token.find().sort({ createdAt: -1 });
     res.json({
       success: true,
-      tokens: tokens
+      tokens: tokens.map(token => {
+        const tokenObj = token.toObject();
+        return {
+          ...tokenObj,
+          id: tokenObj._id
+        };
+      })
     });
   } catch (error) {
     console.error('Error fetching tokens:', error);
@@ -48,9 +58,13 @@ router.get('/token/:id', async (req, res) => {
         error: 'Token not found'
       });
     }
+    const tokenObj = token.toObject();
     res.json({
       success: true,
-      token: token
+      token: {
+        ...tokenObj,
+        id: tokenObj._id
+      }
     });
   } catch (error) {
     console.error('Error fetching token:', error);
@@ -75,9 +89,13 @@ router.patch('/token/:id/address', async (req, res) => {
         error: 'Token not found'
       });
     }
+    const tokenObj = token.toObject();
     res.json({
       success: true,
-      token: token
+      token: {
+        ...tokenObj,
+        id: tokenObj._id
+      }
     });
   } catch (error) {
     console.error('Error updating token address:', error);

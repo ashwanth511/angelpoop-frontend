@@ -1,7 +1,8 @@
 import React, { useState, ChangeEvent } from 'react';
-import { toast } from 'react-hot-toast';
-import { useNavigate } from 'react-router-dom';
-import { useAgentStore } from '../../services/agentService';
+import { toast } from "react-hot-toast";
+import { useNavigate } from "react-router-dom";
+import { useAgentStore } from "../../services/aiAgent";
+
 import { NavBar } from '@/components/Blocks/Navbar';
 import { api } from '../../services/api';
 import { useTonConnectUI } from '@tonconnect/ui-react';
@@ -11,13 +12,13 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import axios from 'axios';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { createAIAgent } from '@/services/aiAgent';
 
 export const LaunchToken: React.FC = () => {
   const navigate = useNavigate();
   const [tonConnectUI] = useTonConnectUI();
   const { network } = useNetwork();
-  const { addTokenAgent } = useAgentStore();
+  const { createAgent } = useAgentStore();
+ 
   const [formData, setFormData] = useState({
     tokenName: '',
     tokenSymbol: '',
@@ -149,35 +150,36 @@ export const LaunchToken: React.FC = () => {
       const response = await api.createToken(tokenData);
       
       if (response.success) {
-        // Create and initialize AI agent
-        const agent = await createAIAgent({
-          tokenName: formData.tokenName,
-          tokenSymbol: formData.tokenSymbol,
-          projectDescription: formData.projectDescription,
+        // Create AI agent
+        const agentData = {
+          tokenId: response.token.id,
+          name: formData.tokenName,
+          agentType: formData.agentType,
           description: formData.description,
-          aiConfig: {
-            handleAnnouncements: true,
+          personality: {
             handleUserQueries: true,
             customInstructions: formData.description
-          },
-          platformType: 'telegram'
-        });
-
-        if (agent) {
-          // Add to agent store
-          addTokenAgent(agent.id, formData.agentType, formData.description, formData.projectDescription);
-          
-          setLaunchedToken(response.token);
-          toast.success('🚀 Token and AI agent launched successfully!');
-          setShowSuccessModal(true);
-          
-          // Navigate after a delay
-          setTimeout(() => {
-            navigate(`/token/${response.token.id}`);
-          }, 3000);
-        } else {
-          toast.error('Failed to create AI agent');
+          }
+        };
+        
+        try {
+          const agentResponse = await createAgent(agentData);
+          if (agentResponse.success) {
+            toast.success('🤖 AI Agent created successfully!');
+          }
+        } catch (error: any) {
+          console.error('Error creating AI agent:', error);
+          toast.error('Failed to create AI agent, but token was created');
         }
+        
+        setLaunchedToken(response.token);
+        toast.success('🚀 Token launched successfully!');
+        setShowSuccessModal(true);
+        
+        // Navigate after a delay
+        setTimeout(() => {
+          navigate(`/token/${response.token.id}`);
+        }, 3000);
       } else {
         toast.error('Failed to launch token');
       }

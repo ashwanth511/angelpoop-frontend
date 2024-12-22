@@ -154,8 +154,9 @@ export const TokenList: React.FC = () => {
     token.agentType.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleTokenClick = (tokenId: string) => {
-    console.log('Navigating to token:', tokenId);
+  const handleTokenClick = (token: any) => {
+    console.log('Navigating to token:', token);
+    const tokenId = token.id || token._id;
     navigate(`/token/${tokenId}`);
   };
 
@@ -208,8 +209,8 @@ export const TokenList: React.FC = () => {
             ) : (
               filteredTokens.map((token) => (
                 <TokenCard 
-                  key={token._id} 
-                  onClick={() => handleTokenClick(token._id)}
+                  key={token.id || token._id} 
+                  onClick={() => handleTokenClick(token)}
                   className="transition-transform duration-300 hover:scale-105"
                 >
                   <TokenImage src={token.imageUrl || 'https://picsum.photos/200'} alt={token.name} />

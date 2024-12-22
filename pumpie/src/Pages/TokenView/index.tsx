@@ -2,15 +2,18 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { Button } from '@/components/ui/button';
-import { NavBar } from '@/components/Blocks/Navbar';
+
 import { api } from '../../services/api';
 import { createChart, ColorType } from 'lightweight-charts';
 import { ArrowLeft } from 'lucide-react';
 import { useTonConnectUI } from '@tonconnect/ui-react';
 import { AIAgent } from '@/services/aiAgent';
 import { Forum } from '@/components/Forum/Forum';
+import axios from 'axios';
+import { BASE_URL } from '@/config';
 
 interface Token {
+  id: string;
   _id: string;
   name: string;
   description: string;
@@ -49,8 +52,11 @@ export const TokenView = () => {
   const [tonConnectUI] = useTonConnectUI();
   const [agent, setAgent] = useState<AIAgent | null>(null);
   const [message, setMessage] = useState('');
-  const [messages, setMessages] = useState<{ role: 'user' | 'agent', content: string }[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isAgentLoading, setIsAgentLoading] = useState(true);
+  const [agentError, setAgentError] = useState<string | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const loadToken = async () => {
@@ -61,7 +67,7 @@ export const TokenView = () => {
       }
 
       try {
-        const response = await api.getTokenById(tokenId);
+        const response = await api.getToken(tokenId);
         if (response.success && response.token) {
           setToken(response.token);
         } else {
@@ -80,20 +86,50 @@ export const TokenView = () => {
     loadToken();
   }, [tokenId, navigate]);
 
+  const loadAgent = async () => {
+    if (!token) return;
+    
+    try {
+      setIsAgentLoading(true);
+      setAgentError(null);
+      const loadedAgent = await AIAgent.loadFromDatabase(token._id);
+      setAgent(loadedAgent);
+    } catch (error) {
+      console.error('Error loading agent:', error);
+      setAgentError('Failed to load AI agent. Please try again later.');
+    } finally {
+      setIsAgentLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (token) {
+      loadAgent();
+    }
+  }, [token]);
+
   useEffect(() => {
     const loadAgent = async () => {
       if (!tokenId) return;
       
       try {
+        setIsLoading(true);
         const loadedAgent = await AIAgent.loadFromDatabase(tokenId);
         if (loadedAgent) {
           setAgent(loadedAgent);
+          // Load previous conversations
+          const response = await axios.get(`${BASE_URL}/api/conversations/${tokenId}`);
+          if (response.data && response.data.success) {
+            setMessages(response.data.conversations);
+          }
         } else {
           toast.error('Failed to load AI agent');
         }
       } catch (error) {
         console.error('Error loading agent:', error);
         toast.error('Failed to load AI agent');
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -167,39 +203,137 @@ export const TokenView = () => {
     };
   }, [token]);
 
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newMessage.trim()) return;
+  const handleSendMessage = async (e?: React.FormEvent | React.MouseEvent) => {
+    if (e && 'preventDefault' in e) {
+      e.preventDefault();
+    }
+    
+    if (!message.trim() || !agent || isLoading) return;
 
-    const userMessage: ChatMessage = {
-      role: 'user',
-      content: newMessage,
-      timestamp: new Date().toISOString(),
-      address: '0x...' // Replace with actual user address
-    };
-
-    setChatMessages(prev => [...prev, userMessage]);
-    setNewMessage('');
-  };
-
-  const handleAISendMessage = async () => {
-    if (!message.trim() || !agent) return;
-
+    const userMessage = message.trim();
+    setMessage('');
+    setIsLoading(true);
+    
     try {
-      setIsLoading(true);
-      setMessages(prev => [...prev, { role: 'user', content: message }]);
-      setMessage('');
-
-      const response = await agent.chat(message);
+      // Add user message to chat
+      const newUserMessage: ChatMessage = {
+        role: 'user',
+        content: userMessage,
+        timestamp: new Date().toISOString(),
+        address: tonConnectUI.account?.address || 'Unknown'
+      };
       
-      setMessages(prev => [...prev, { role: 'agent', content: response }]);
+      setMessages(prev => [...prev, newUserMessage]);
+      
+      // Get response from agent
+      const response = await agent.handleForumMessage(userMessage);
+      
+      // Add agent message to chat
+      const agentMessage: ChatMessage = {
+        role: 'agent',
+        content: response,
+        timestamp: new Date().toISOString(),
+        address: token?.name || 'AI Agent'
+      };
+      
+      setMessages(prev => [...prev, agentMessage]);
     } catch (error) {
       console.error('Error sending message:', error);
-      toast.error('Failed to get response from AI agent');
+      toast.error('Failed to send message. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
+
+  const renderChatSection = () => {
+    if (isAgentLoading) {
+      return (
+        <div className="bg-gray-800/50 rounded-lg p-4">
+          <div className="flex items-center justify-center h-[400px]">
+            <div className="text-gray-400">Loading AI agent...</div>
+          </div>
+        </div>
+      );
+    }
+
+    if (agentError) {
+      return (
+        <div className="bg-gray-800/50 rounded-lg p-4">
+          <div className="flex items-center justify-center h-[400px]">
+            <div className="text-red-400">{agentError}</div>
+          </div>
+        </div>
+      );
+    }
+
+    if (!agent) {
+      return (
+        <div className="bg-gray-800/50 rounded-lg p-4">
+          <div className="flex items-center justify-center h-[400px]">
+            <div className="text-gray-400">AI agent not available</div>
+          </div>
+        </div>
+      );
+    }
+    
+    return (
+      <div className="bg-gray-800/50 rounded-lg p-4">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-white">Chat with {token?.name || 'Token'} AI Agent</h2>
+          <span className="px-2 py-1 text-xs bg-gray-700 text-gray-300 rounded-full">
+            Live
+          </span>
+        </div>
+
+        <div className="h-[400px] flex flex-col">
+          <div className="flex-1 overflow-y-auto space-y-4 mb-4">
+            {messages.map((msg, index) => (
+              <div key={index} className="flex flex-col">
+                <div className="text-xs text-gray-500 mb-1">
+                  {msg.role === 'user' ? (
+                    <span className="font-mono">{msg.address}</span>
+                  ) : (
+                    <span className="font-medium">{token?.name} AI</span>
+                  )}
+                </div>
+                <div className={`p-3 rounded-lg ${
+                  msg.role === 'user' 
+                    ? 'bg-gray-700 ml-auto max-w-[80%]' 
+                    : 'bg-[#00FFA3] text-black mr-auto max-w-[80%]'
+                }`}>
+                  {msg.content}
+                </div>
+              </div>
+            ))}
+            <div ref={messagesEndRef} />
+          </div>
+
+          <form onSubmit={handleSendMessage} className="flex gap-2">
+            <input
+              type="text"
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="Ask the AI agent anything..."
+              className="flex-1 px-4 py-2 rounded-lg bg-gray-700 border border-gray-600 focus:outline-none focus:border-[#00FFA3]"
+              disabled={isLoading}
+            />
+            <button
+              type="submit"
+              disabled={isLoading || !message.trim()}
+              className="px-6 py-2 bg-[#00FFA3] text-black rounded-lg hover:bg-[#00DD8C] disabled:opacity-50"
+            >
+              {isLoading ? 'Sending...' : 'Send'}
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  };
+
+  useEffect(() => {
+    // Scroll to bottom of chat
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
   if (loading) {
     return (
@@ -448,54 +582,9 @@ export const TokenView = () => {
             </div>
 
             {/* Forum Chat */}
-            <div className="bg-gray-800/50 rounded-lg p-4">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-white">Chat with Token AI Agent</h2>
-                <span className="px-2 py-1 text-xs bg-gray-700 text-gray-300 rounded-full">
-                  Live
-                </span>
-              </div>
-
-              <div className="h-[400px] flex flex-col">
-                <div className="flex-1 overflow-y-auto space-y-4 mb-4">
-                  {messages.map((msg, index) => (
-                    <div
-                      key={index}
-                      className={`p-3 rounded-lg ${
-                        msg.role === 'user' 
-                          ? 'bg-gray-700 ml-auto max-w-[80%]' 
-                          : 'bg-[#00FFA3] text-black mr-auto max-w-[80%]'
-                      }`}
-                    >
-                      {msg.content}
-                    </div>
-                  ))}
-                </div>
-
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    placeholder="Ask the AI agent anything..."
-                    className="flex-1 px-4 py-2 rounded-lg bg-gray-700 border border-gray-600 focus:outline-none focus:border-[#00FFA3]"
-                    onKeyPress={(e) => e.key === 'Enter' && handleAISendMessage()}
-                  />
-                  <button
-                    onClick={handleAISendMessage}
-                    disabled={isLoading || !message.trim()}
-                    className="px-6 py-2 bg-[#00FFA3] text-black rounded-lg hover:bg-[#00DD8C] disabled:opacity-50"
-                  >
-                    {isLoading ? 'Sending...' : 'Send'}
-                  </button>
-                </div>
-              </div>
-            </div>
+            {renderChatSection()}
           </div>
         </div>
-
-
-        
       </div>
     </div>
   );
