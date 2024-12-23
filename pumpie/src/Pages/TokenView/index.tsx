@@ -51,7 +51,7 @@ export const TokenView = () => {
   const [tradeTab, setTradeTab] = useState<'buy' | 'sell'>('buy');
   const [tonConnectUI] = useTonConnectUI();
   const [agent, setAgent] = useState<AIAgent | null>(null);
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState<string>(''); // State for the input message
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isAgentLoading, setIsAgentLoading] = useState(true);
@@ -86,55 +86,54 @@ export const TokenView = () => {
     loadToken();
   }, [tokenId, navigate]);
 
-  const loadAgent = async () => {
-    if (!token) return;
-    
-    try {
-      setIsAgentLoading(true);
-      setAgentError(null);
-      const loadedAgent = await AIAgent.loadFromDatabase(token._id);
-      setAgent(loadedAgent);
-    } catch (error) {
-      console.error('Error loading agent:', error);
-      setAgentError('Failed to load AI agent. Please try again later.');
-    } finally {
-      setIsAgentLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (token) {
-      loadAgent();
-    }
-  }, [token]);
-
   useEffect(() => {
     const loadAgent = async () => {
       if (!tokenId) return;
       
       try {
-        setIsLoading(true);
-        const loadedAgent = await AIAgent.loadFromDatabase(tokenId);
-        if (loadedAgent) {
-          setAgent(loadedAgent);
-          // Load previous conversations
-          const response = await axios.get(`${BASE_URL}/api/conversations/${tokenId}`);
-          if (response.data && response.data.success) {
-            setMessages(response.data.conversations);
-          }
-        } else {
-          toast.error('Failed to load AI agent');
-        }
+        setIsAgentLoading(true);
+        setAgentError(null);
+        
+        // First try to load from database
+        const agent = new AIAgent(tokenId);
+        await agent.initialize();
+        setAgent(agent);
       } catch (error) {
         console.error('Error loading agent:', error);
+        setAgentError('Failed to load AI agent');
         toast.error('Failed to load AI agent');
       } finally {
-        setIsLoading(false);
+        setIsAgentLoading(false);
       }
     };
 
-    loadAgent();
-  }, [tokenId]);
+    if (token) {
+      loadAgent();
+    }
+  }, [token, tokenId]);
+
+  useEffect(() => {
+    const loadConversations = async () => {
+      if (!tokenId) return;
+      
+      try {
+        const response = await axios.get(`${BASE_URL}/api/conversations/${tokenId}`);
+        if (response.data.success) {
+          setMessages(response.data.conversations.messages || []);
+        }
+      } catch (error) {
+        console.error('Error fetching conversations:', error);
+        // Don't show error toast for 404 as it's expected for new tokens
+        if (error.response?.status !== 404) {
+          toast.error('Failed to load conversations');
+        }
+      }
+    };
+
+    if (token) {
+      loadConversations();
+    }
+  }, [token, tokenId]);
 
   useEffect(() => {
     if (!chartContainerRef.current || !token) return;
@@ -203,43 +202,50 @@ export const TokenView = () => {
     };
   }, [token]);
 
-  const handleSendMessage = async (e?: React.FormEvent | React.MouseEvent) => {
-    if (e && 'preventDefault' in e) {
-      e.preventDefault();
-    }
-    
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!message.trim() || !agent || isLoading) return;
 
     const userMessage = message.trim();
     setMessage('');
-    setIsLoading(true);
     
     try {
-      // Add user message to chat
-      const newUserMessage: ChatMessage = {
+      setIsLoading(true);
+      
+      // Add user message immediately
+      const userMsg: ChatMessage = {
         role: 'user',
         content: userMessage,
         timestamp: new Date().toISOString(),
         address: tonConnectUI.account?.address || 'Unknown'
       };
-      
-      setMessages(prev => [...prev, newUserMessage]);
+      setMessages(prev => [...prev, userMsg]);
       
       // Get response from agent
       const response = await agent.handleForumMessage(userMessage);
       
-      // Add agent message to chat
-      const agentMessage: ChatMessage = {
+      // Add agent response
+      const agentMsg: ChatMessage = {
         role: 'agent',
         content: response,
-        timestamp: new Date().toISOString(),
-        address: token?.name || 'AI Agent'
+        timestamp: new Date().toISOString()
       };
+      setMessages(prev => [...prev, agentMsg]);
       
-      setMessages(prev => [...prev, agentMessage]);
+      // Scroll to bottom
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     } catch (error) {
       console.error('Error sending message:', error);
-      toast.error('Failed to send message. Please try again.');
+      toast.error('Failed to send message');
+      // Add error message
+      setMessages(prev => [
+        ...prev,
+        {
+          role: 'agent',
+          content: 'Sorry, I encountered an error while processing your message. Please try again.',
+          timestamp: new Date().toISOString()
+        }
+      ]);
     } finally {
       setIsLoading(false);
     }
@@ -280,7 +286,7 @@ export const TokenView = () => {
       <div className="bg-gray-800/50 rounded-lg p-4">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-white">Chat with {token?.name || 'Token'} AI Agent</h2>
-          <span className="px-2 py-1 text-xs bg-gray-700 text-gray-300 rounded-full">
+          <span className="px-2 py-1 text-xs bg-gray-700 text-green-300 rounded-full">
             Live
           </span>
         </div>
@@ -367,6 +373,28 @@ export const TokenView = () => {
                 <span className="px-2 py-0.5 text-xs bg-black text-gray-300 rounded-full">
                   {token.creatorAddress}
                 </span>
+
+                {
+token.networkType === 'testnet' && (
+                  <span className="px-2 py-0.5 text-xs bg-red-800 text-white rounded-full">
+                    Testnet
+                  </span>
+                ) 
+                }
+                {
+token.networkType === 'mainnet' && (
+                  <span className="px-2 py-0.5 text-xs bg-green-800 text-white rounded-full">
+                    Mainnet
+                  </span>
+                ) 
+                }
+
+             
+
+
+
+
+
               </div>
             </div>
           </div>

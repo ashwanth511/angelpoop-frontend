@@ -1,24 +1,37 @@
 import React, { useState, ChangeEvent } from 'react';
 import { toast } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
-import { useAgentStore } from "../../services/aiAgent";
+import { createAIAgent, useAgentStore } from "../../services/aiAgent";
 
 import { NavBar } from '@/components/Blocks/Navbar';
 import { api } from '../../services/api';
 import { useTonConnectUI } from '@tonconnect/ui-react';
 import { useNetwork } from '../../context/NetworkContext';
-import { Address } from '@ton/core';
+import { Sender,toNano,Address } from '@ton/core';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import axios from 'axios';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { buildOnchainMetadata } from '@/utils/jetton-helpers';
+import { TonClient } from '@ton/ton';
+import { JettonCore } from '@/wrappers/JettonCore';
+import TonConnectSender from '@/hooks/TonConnectSender';
+import { getHttpEndpoint } from "@orbs-network/ton-access";
 
 export const LaunchToken: React.FC = () => {
   const navigate = useNavigate();
   const [tonConnectUI] = useTonConnectUI();
   const { network } = useNetwork();
   const { createAgent } = useAgentStore();
- 
+  const [val, setVal] = useState<null | number>(null);
+  const [showVal, setShowVal] = useState<boolean>(false);
+
+  // Constants for token deployment
+  const Max_Supply: bigint = 100000000000000000000n;
+  const initial_Price: bigint = 10000n;
+  const iinitial_mint_Amount: bigint = 10000000000000n;
+  const PoolCore_ADDRESS = "EQCZ5BCtbFd52Q4gZPuTf40HN9HR5HzAnnFNgQBdvFiQUAsk";
+
   const [formData, setFormData] = useState({
     tokenName: '',
     tokenSymbol: '',
@@ -136,9 +149,63 @@ export const LaunchToken: React.FC = () => {
         }
       }
 
-      // Create token
+      // Deploy contract first
+      try {
+        toast.loading('Deploying token contract...');
+        
+        const sender = new TonConnectSender(tonConnectUI.connector);
+        const endpoint = await getHttpEndpoint({
+          network: network === 'testnet' ? "testnet" : "mainnet",
+        });
+
+        const client = new TonClient({ endpoint });
+        const poolCoreAddress = Address.parse(PoolCore_ADDRESS);
+
+        const jettonParams = {
+          name: formData.tokenName,
+          description: formData.description,
+          symbol: formData.tokenSymbol,
+          image: imageUrl, // Using the IPFS URL here
+        };
+
+        // Create content Cell
+        const content = buildOnchainMetadata(jettonParams);
+
+        const sampleJetton = client.open(
+          await JettonCore.fromInit(
+            sender.address as Address,
+            content,
+            Max_Supply,
+            initial_Price,
+            iinitial_mint_Amount,
+            poolCoreAddress
+          )
+        );
+
+        await sampleJetton.send(
+          sender,
+          {
+            value: toNano('0.05'),
+          },
+          {
+            $$type: 'Deploy',
+            queryId: 0n
+          }
+        );
+
+        toast.success('Token contract deployed successfully!');
+      } catch (error) {
+        console.error('Error deploying contract:', error);
+        toast.error('Failed to deploy token contract');
+        setIsLoading(false);
+        return;
+      }
+
+      // Create token in database
       const tokenData = {
         name: formData.tokenName,
+        symbol: formData.tokenSymbol,
+        totalSupply: Max_Supply.toString(),
         description: formData.description,
         projectDescription: formData.projectDescription,
         agentType: formData.agentType,
@@ -184,8 +251,8 @@ export const LaunchToken: React.FC = () => {
         toast.error('Failed to launch token');
       }
     } catch (error) {
-      console.error('Error launching token:', error);
-      toast.error('Failed to launch token');
+      console.error('Error:', error);
+      toast.error('An error occurred while launching the token');
     } finally {
       setIsLoading(false);
     }

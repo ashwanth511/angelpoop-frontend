@@ -19,8 +19,7 @@ const messageSchema = new mongoose.Schema({
 
 const conversationSchema = new mongoose.Schema({
   tokenId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Token',
+    type: String,
     required: true
   },
   messages: [messageSchema]

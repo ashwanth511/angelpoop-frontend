@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Agent = require('../models/agent.model');
 const llmService = require('../services/llm.service');
+const Token = require('../models/token.model');
 
 // Create a new agent
 router.post('/create-agent', async (req, res) => {
@@ -59,9 +60,16 @@ router.get('/agent/:tokenId', async (req, res) => {
         error: 'Agent not found'
       });
     }
+
+    // Get associated token info
+    const token = await Token.findById(req.params.tokenId);
+
     res.json({
       success: true,
-      agent: agent.toObject()
+      agent: {
+        ...agent.toObject(),
+        tokenInfo: token ? token.toObject() : null
+      }
     });
   } catch (error) {
     console.error('Error fetching agent:', error);

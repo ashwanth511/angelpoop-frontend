@@ -5,6 +5,8 @@ const API_BASE_URL = 'http://localhost:3001/api';
 interface TokenData {
   _id?: string;
   name: string;
+  symbol: string;
+  totalSupply: string;
   description: string;
   projectDescription?: string;
   agentType: string;

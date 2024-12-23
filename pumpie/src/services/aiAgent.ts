@@ -4,6 +4,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { agentTemplates } from '../config/agentTemplates';
 import { BASE_URL } from '../config';
 import { GOOGLE_AI_API_KEY } from '../config';
+import { api } from './api';
 import { create } from 'zustand';
 
 const genAI = new GoogleGenerativeAI(GOOGLE_AI_API_KEY);
@@ -52,13 +53,32 @@ interface AgentState {
   agents: { [tokenId: string]: AIAgent };
   addAgent: (tokenId: string, agent: AIAgent) => void;
   getAgent: (tokenId: string) => AIAgent | undefined;
+  createAgent: (agentData: AIAgentConfig) => Promise<{ success: boolean; message: string }>;
 }
 
 export const useAgentStore = create<AgentState>((set, get) => ({
   agents: {},
-  addAgent: (tokenId, agent) => set(state => ({ agents: { ...state.agents, [tokenId]: agent } })),
-  getAgent: (tokenId) => get().agents[tokenId]
-}));
+  addAgent: (tokenId: string, agent: AIAgent) => set(state => ({ agents: { ...state.agents, [tokenId]: agent } })),
+  getAgent: (tokenId: string) => get().agents[tokenId],
+
+  createAgent: async (agentData) => {
+    try {
+      const response = await api.createAgent(agentData);
+      if (response.success) {
+        return { success: true, message: 'Agent created successfully' };
+      }
+      return { success: false, message: 'Failed to create agent' };
+    } catch (error) {
+      console.error('Error creating agent:', error);
+      return { success: false, message: 'Failed to create agent' };
+    }
+  }
+
+
+
+}
+
+));
 
 export class AIAgent {
   private tokenId: string;
@@ -82,21 +102,39 @@ export class AIAgent {
 
   async initialize() {
     try {
-      const tokenData = await this.fetchTokenInfo();
-      this.tokenInfo = tokenData;
-      this.personality = agentTemplates[tokenData.agentType];
-      this.initializeContext();
+      // First try to load from database
+      const response = await axios.get(`${BASE_URL}/api/agent/${this.tokenId}`);
+      
+      if (response.data.success && response.data.agent) {
+        // If agent exists in database, use that data
+        this.tokenInfo = response.data.agent.tokenInfo;
+        this.personality = response.data.agent.personality;
+        this.context = response.data.agent.context;
+      } else {
+        // If not in database, create new agent
+        const tokenData = await this.fetchTokenInfo();
+        this.tokenInfo = tokenData;
+        
+        // Initialize personality based on token type
+        this.personality = agentTemplates[tokenData.agentType] || agentTemplates.utility;
+        
+        // Initialize context
+        this.initializeContext();
 
-      await this.storeAgentData({
-        tokenId: this.tokenId,
-        agentType: tokenData.agentType,
-        personality: this.personality,
-        context: this.context,
-        lastActive: new Date()
-      });
+        // Store agent data
+        await this.storeAgentData({
+          tokenId: this.tokenId,
+          agentType: tokenData.agentType,
+          personality: this.personality,
+          context: this.context,
+          lastActive: new Date()
+        });
+      }
 
       // Add agent to global store
       useAgentStore.getState().addAgent(this.tokenId, this);
+
+      return this;
     } catch (error) {
       console.error('Error initializing AI agent:', error);
       throw new Error('Failed to initialize AI agent');
@@ -104,13 +142,15 @@ export class AIAgent {
   }
 
   private initializeContext() {
+    if (!this.tokenInfo || !this.personality) return;
+
     const { personality } = this.personality;
     this.context = [
-      `I am an AI agent for ${this.tokenInfo?.name}, a ${this.tokenInfo?.agentType} token.`,
+      `I am an AI agent for ${this.tokenInfo.name}, a ${this.tokenInfo.agentType} token.`,
       `My personality traits: ${personality.traits.join(', ')}`,
       `I communicate in a ${personality.communication_style} manner`,
       `My interests include: ${personality.interests.join(', ')}`,
-      `Token Description: ${this.tokenInfo?.description}`,
+      `Token Description: ${this.tokenInfo.description}`,
       `I should detect and respond in the same language as the user's message.`
     ];
   }
@@ -146,23 +186,26 @@ export class AIAgent {
     }
   }
 
-  async handleForumMessage(message: string): Promise<string> {
+  async generateResponse(message: string): Promise<string> {
     try {
-      const prompt = `
-        Context:
-        ${this.context.join('\n')}
-        
-        Important Instructions:
-        1. Detect the language of the following user message
-        2. Respond in the SAME language as the user's message
-        3. Maintain the token's personality while responding
-        4. Keep the response concise and natural
-        
-        User message: ${message}
-      `;
+      const prompt = this.formatPrompt(message);
+      const result = await this.model.generateContent({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: {
+          maxOutputTokens: 150,
+          temperature: 0.7,
+          topP: 0.8,
+          topK: 40,
+        },
+      });
 
-      const result = await this.model.generateContent(prompt);
-      const response = result.response.text();
+      let response = result.response.text();
+      
+      // Add type-specific signature
+      const signature = this.getTypeSpecificSignature();
+      if (signature) {
+        response = `${response}\n\n${signature}`;
+      }
       
       return response;
     } catch (error) {
@@ -171,70 +214,153 @@ export class AIAgent {
     }
   }
 
-  static async loadFromDatabase(tokenId: string): Promise<AIAgent | null> {
-    try {
-      // Check if agent exists in store
-      const existingAgent = useAgentStore.getState().getAgent(tokenId);
-      if (existingAgent) {
-        return existingAgent;
-      }
-
-      // Create new agent if not in store
-      const agent = new AIAgent(tokenId);
-      await agent.initialize();
-      return agent;
-    } catch (error) {
-      console.error('Error loading agent from database:', error);
-      throw error;
-    }
-  }
-
-  async generateResponse(message: string): Promise<string> {
-    try {
-      const prompt = this.formatPrompt(message);
-      const result = await this.model.generateContent(prompt);
-      const response = result.response;
-      return response.text();
-    } catch (error) {
-      console.error('Error generating response:', error);
-      return "I apologize, but I'm having trouble processing your request at the moment.";
-    }
-  }
-
   private formatPrompt(message: string): string {
-    return `
-      Context: You are an AI agent for ${this.tokenInfo?.name}, a ${this.tokenInfo?.agentType} token.
-      Personality: ${JSON.stringify(this.personality)}
-      Previous Context: ${this.context.join('\n')}
-      
-      User Message: ${message}
-      
-      Please respond in a way that reflects your personality and knowledge about the token.
-    `;
+    const personality = this.personality?.personality || {};
+    const traits = personality.traits || [];
+    const style = personality.communication_style || 'professional';
+    const functions = this.personality?.functions || [];
+
+    // Get agent type specific instructions
+    const typeSpecificInstructions = this.getTypeSpecificInstructions();
+
+    return `You are an AI agent for ${this.tokenInfo?.name} (${this.tokenInfo?.symbol}), specifically designed as a ${this.tokenInfo?.agentType} token agent.
+
+Key Token Information:
+- Symbol: ${this.tokenInfo?.symbol}
+- Description: ${this.tokenInfo?.description}
+- Type: ${this.tokenInfo?.agentType}
+- Supply: ${this.tokenInfo?.totalSupply}
+- Network: ${this.tokenInfo?.networkType}
+
+Your Role and Personality:
+- You are a ${traits.join(', ')} AI agent
+- You communicate in a ${style} manner
+- Your key functions: ${functions.join(', ')}
+
+${typeSpecificInstructions}
+
+Instructions:
+1. Give short, direct answers (2-3 sentences max)
+2. Always stay in character as a ${this.tokenInfo?.agentType} token agent
+3. Focus on your specific token type expertise
+4. Include relevant metrics when asked
+5. Be helpful but concise
+
+User message: ${message}`;
+  }
+
+  private getTypeSpecificInstructions(): string {
+    switch (this.tokenInfo?.agentType) {
+      case 'entertainment':
+        return `As an entertainment token agent:
+- Focus on fun, engagement, and community aspects
+- Share information about games, events, and entertainment features
+- Keep responses upbeat and engaging`;
+
+      case 'utility':
+        return `As a utility token agent:
+- Focus on technical features and practical use cases
+- Explain utility functions and token mechanics
+- Keep responses technical and precise`;
+
+      case 'social':
+        return `As a social token agent:
+- Focus on community features and social interactions
+- Highlight community benefits and engagement
+- Keep responses friendly and community-oriented`;
+
+      case 'defi':
+        return `As a DeFi token agent:
+- Focus on financial metrics and market performance
+- Share insights about token economics and value
+- Keep responses analytical and market-focused`;
+
+      default:
+        return '';
+    }
+  }
+
+  private getTypeSpecificSignature(): string {
+    const template = agentTemplates[this.tokenInfo?.agentType || 'utility'];
+    return template.default_responses.greeting;
   }
 
   async handleForumMessage(message: string): Promise<string> {
     try {
+      // Generate response
       const response = await this.generateResponse(message);
-      // Store the conversation in the database
-      await this.storeConversation({
-        tokenId: this.tokenId,
-        message,
-        response,
-        timestamp: new Date()
-      });
+      
+      // Update context
+      this.context.push(`User: ${message}`);
+      this.context.push(`Assistant: ${response}`);
+      
+      // Keep context manageable
+      if (this.context.length > 10) {
+        this.context = this.context.slice(-10);
+      }
+
+      try {
+        // Store conversation
+        await this.storeConversation({
+          tokenId: this.tokenId,
+          message: {
+            role: 'user',
+            content: message,
+            timestamp: new Date().toISOString()
+          },
+          response: {
+            role: 'agent',
+            content: response,
+            timestamp: new Date().toISOString()
+          }
+        });
+      } catch (error) {
+        console.error('Error storing conversation:', error);
+        // Don't throw error here, just log it
+      }
+      
+      // Update agent data
+      try {
+        await this.storeAgentData({
+          tokenId: this.tokenId,
+          agentType: this.tokenInfo?.agentType || 'utility',
+          personality: this.personality,
+          context: this.context,
+          lastActive: new Date()
+        });
+      } catch (error) {
+        console.error('Error updating agent data:', error);
+        // Don't throw error here, just log it
+      }
+      
       return response;
     } catch (error) {
       console.error('Error handling forum message:', error);
-      return "I apologize, but I'm having trouble responding at the moment.";
+      throw new Error('Failed to handle forum message');
     }
   }
 
-  private async storeConversation(conversationData: any) {
+  private async storeConversation(data: {
+    tokenId: string;
+    message: {
+      role: string;
+      content: string;
+      timestamp: string;
+    };
+    response: {
+      role: string;
+      content: string;
+      timestamp: string;
+    };
+  }) {
     try {
-      await axios.post(`${BASE_URL}/api/conversations`, conversationData);
+      const response = await axios.post(`${BASE_URL}/api/conversations`, data);
+      if (!response.data.success) {
+        throw new Error(response.data.error || 'Failed to store conversation');
+      }
     } catch (error) {
       console.error('Error storing conversation:', error);
+      throw error;
     }
   }
 
@@ -287,6 +413,31 @@ export class AIAgent {
     } catch (error) {
       console.error('Error processing message:', error);
       return "I apologize, but I'm having trouble processing your message right now. Please try again later.";
+    }
+  }
+
+  static async loadFromDatabase(tokenId: string): Promise<AIAgent> {
+    try {
+      // Create a new instance
+      const agent = new AIAgent(tokenId);
+      
+      // Try to load from database
+      const response = await axios.get(`${BASE_URL}/api/agent/${tokenId}`);
+      
+      if (response.data.success && response.data.agent) {
+        // If agent exists in database, use that data
+        agent.tokenInfo = response.data.agent.tokenInfo;
+        agent.personality = response.data.agent.personality;
+        agent.context = response.data.agent.context;
+      } else {
+        // If agent doesn't exist, initialize it
+        await agent.initialize();
+      }
+      
+      return agent;
+    } catch (error) {
+      console.error('Error loading agent from database:', error);
+      throw new Error('Failed to load agent from database');
     }
   }
 }

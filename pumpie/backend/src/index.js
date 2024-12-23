@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const tokenRoutes = require('./routes/token.routes');
 const agentRoutes = require('./routes/agent.routes');
+const conversationRoutes = require('./routes/conversation.routes');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -42,6 +43,7 @@ mongoose.connection.on('disconnected', () => {
 // Routes
 app.use('/api', tokenRoutes);
 app.use('/api', agentRoutes);
+app.use('/api', conversationRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
