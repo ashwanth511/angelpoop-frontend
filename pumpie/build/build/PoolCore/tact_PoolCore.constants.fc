@@ -1,4 +1,0 @@
-;; Comment "Withdrawn all pool balances"
-cell __gen_cell_comment_e3dde182b9b298772691a0bc6eda6e0815fd36428ea59b90af4bcec9c7b28d3b() asm """
-    B{b5ee9c7241010101002100003e0000000057697468647261776e20616c6c20706f6f6c2062616c616e6365736160fa8f} B>boc PUSHREF
-""";

@@ -16,6 +16,7 @@ import { getHttpEndpoint } from "@orbs-network/ton-access";
 import { TonClient } from '@ton/ton';
 import { PoolCore } from '@/wrappers/tact_PoolCore';
 import TonConnectSender from '@/hooks/TonConnectSender';
+import { JettonMaster, JettonWallet } from '@ton/core';
 
 interface Token {
   id: string;
@@ -70,6 +71,8 @@ export const TokenView = () => {
   const [tokenSupply, setTokenSupply] = useState<string | null>(null);
   const [liquidityProgress, setLiquidityProgress] = useState<number>(0);
   const [tonPrice, setTonPrice] = useState<number>(2.5); // Default TON price in USD
+  const [tonBalance, setTonBalance] = useState<string>('0');
+  const [tokenBalance, setTokenBalance] = useState<string>('0');
 
   // Target liquidity amount to move to DEX (10,000 TON)
   const TARGET_LIQUIDITY = toNano('10000');
@@ -136,6 +139,66 @@ export const TokenView = () => {
     if (currency === 'USD') return `$${formatNumber(amount)}`;
     return `${formatNumber(amount)} TON`;
   };
+
+  const fetchTonBalance = async (address: string) => {
+    try {
+      const baseUrl = token?.networkType === 'testnet' 
+        ? 'https://testnet.toncenter.com/api/v2'
+        : 'https://toncenter.com/api/v2';
+      
+      const response = await fetch(
+        `${baseUrl}/getAddressBalance?address=${address}`
+      );
+      const data = await response.json();
+      
+      if (data.ok) {
+        setTonBalance((Number(data.result) / 1e9).toFixed(4));
+      }
+    } catch (error) {
+      console.error('Error fetching TON balance:', error);
+    }
+  };
+
+  const fetchTokenBalance = async (address: string) => {
+    if (!token?.tokenAddress) return;
+
+    try {
+      const endpoint = await getHttpEndpoint({
+        network: token.networkType === 'testnet' ? "testnet" : "mainnet",
+      });
+
+      const client = new TonClient({ endpoint });
+      const tokenAddress = Address.parse(token.tokenAddress);
+      const userAddress = Address.parse(address);
+
+      // Get jetton wallet address
+      const jettonMaster = client.open(JettonMaster.fromAddress(tokenAddress));
+      const jettonWalletAddress = await jettonMaster.getGetWalletAddress(userAddress);
+      
+      // Get balance from jetton wallet
+      const jettonWallet = client.open(JettonWallet.fromAddress(jettonWalletAddress));
+      const balance = await jettonWallet.getGetBalance();
+      
+      setTokenBalance(fromNano(balance));
+    } catch (error) {
+      console.error('Error fetching token balance:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (tonConnectUI.account?.address) {
+      fetchTonBalance(tonConnectUI.account.address);
+      fetchTokenBalance(tonConnectUI.account.address);
+
+      // Refresh balances every 10 seconds
+      const interval = setInterval(() => {
+        fetchTonBalance(tonConnectUI.account.address);
+        fetchTokenBalance(tonConnectUI.account.address);
+      }, 10000);
+
+      return () => clearInterval(interval);
+    }
+  }, [tonConnectUI.account?.address, token?.tokenAddress]);
 
   useEffect(() => {
     const loadToken = async () => {
@@ -336,124 +399,89 @@ export const TokenView = () => {
     }
   };
 
-  const handleTrade = async () => {
+  const BuyJetton = async () => {
     if (!tonConnectUI.connected) {
       toast.error('Please connect your wallet first');
       return;
     }
 
-    if (!fromAmount || isNaN(Number(fromAmount)) || Number(fromAmount) <= 0) {
-      toast.error('Please enter a valid amount');
-      return;
-    }
-
-    // Check if token is in pool
-    if (!token?.inPool) {
-      toast.error('This token is not in the pool yet');
-      return;
-    }
-
-    setLoading(true);
     try {
+      setLoading(true);
       const sender = new TonConnectSender(tonConnectUI.connector);
+
       const endpoint = await getHttpEndpoint({
-        network: token.networkType === 'testnet' ? "testnet" : "mainnet",
+        network: token?.networkType === 'testnet' ? "testnet" : "mainnet",
       });
 
       const client = new TonClient({ endpoint });
-      const poolCoreAddress = Address.parse(token.poolAddress || "EQABFPp8oXtArlOkPbGlOLXsi9KUT7OWMJ1Eg0sLHY2R54RF");
-      const poolCore = new PoolCore(poolCoreAddress);
-      const contract = client.open(poolCore);
 
-      // Parse token address
-      let tokenAddress: Address;
-      try {
-        tokenAddress = Address.parse(token.tokenAddress!);
-      } catch (error) {
-        console.error('Error parsing token address:', error);
-        toast.error('Invalid token address');
-        return;
-      }
+      const Pool_ADDRESS = "EQCZ5BCtbFd52Q4gZPuTf40HN9HR5HzAnnFNgQBdvFiQUAsk";
+      const poolCoreAddress = Address.parse(Pool_ADDRESS);
 
-      // Calculate price impact
-      const supply = BigInt(tokenSupply || '0');
-      const amount = toNano(fromAmount);
-      const priceImpact = Number(amount) / (Number(supply) + Number(amount)) * 100;
+      const sampleJetton = client.open(PoolCore.fromAddress(poolCoreAddress));
 
-      if (priceImpact > 10) {
-        const proceed = window.confirm(`Warning: High price impact of ${priceImpact.toFixed(2)}%. Do you want to proceed?`);
-        if (!proceed) {
-          setLoading(false);
-          return;
+      await sampleJetton.send(
+        sender,
+        {
+          value: toNano('0.05'),
+        },
+        {
+          $$type: 'PoolBuy',
+          jettonAddress: Address.parse(token?.tokenAddress || ''),
         }
-      }
+      );
 
-      // Get user's address for receiving tokens/TON
-      const userAddress = Address.parse(tonConnectUI.account!.address);
+      toast.success('Buy transaction submitted!');
+      await getTokenPrice(); // Refresh price data
+    } catch (error) {
+      console.error('Error buying tokens:', error);
+      toast.error('Failed to buy tokens');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-      if (tradeTab === 'buy') {
-        // Buy tokens
-        await contract.send(
-          sender,
-          {
-            value: toNano(fromAmount).add(toNano('0.1')), // Amount + gas
-            bounce: false
-          },
-          {
-            $$type: 'PoolBuy',
-            jettonAddress: tokenAddress,
-            to: userAddress,
-            amount: toNano(fromAmount)
-          }
-        );
-        toast.success(`Buying ${fromAmount} ${token.symbol}...`);
-      } else {
-        // For sell, we need to approve token transfer first
-        const jettonWallet = client.open(new JettonWallet(tokenAddress));
-        
-        // First approve tokens
-        await jettonWallet.send(
-          sender,
-          {
-            value: toNano('0.1'), // Gas fee
-            bounce: false
-          },
-          {
-            $$type: 'ApproveTokens',
-            spender: poolCoreAddress,
-            amount: toNano(fromAmount)
-          }
-        );
+  const SellJetton = async () => {
+    if (!tonConnectUI.connected) {
+      toast.error('Please connect your wallet first');
+      return;
+    }
 
-        // Then sell tokens
-        await contract.send(
-          sender,
-          {
-            value: toNano('0.1'), // Gas fee
-            bounce: false
-          },
-          {
-            $$type: 'PoolSell',
-            jettonAddress: tokenAddress,
-            to: userAddress,
-            amount: toNano(fromAmount)
-          }
-        );
-        toast.success(`Selling ${fromAmount} ${token.symbol}...`);
-      }
+    try {
+      setLoading(true);
+      const sender = new TonConnectSender(tonConnectUI.connector);
 
-      // Clear input after successful transaction
-      setFromAmount('');
-      
-      // Update token data
-      await getTokenPrice();
-      await fetchToken();
+      const endpoint = await getHttpEndpoint({
+        network: token?.networkType === 'testnet' ? "testnet" : "mainnet",
+      });
 
-      // Show success message
-      toast.success(`${tradeTab === 'buy' ? 'Buy' : 'Sell'} transaction submitted!`);
-    } catch (error: any) {
-      console.error('Error trading:', error);
-      toast.error(`Failed to ${tradeTab} tokens: ${error.message}`);
+      const client = new TonClient({ endpoint });
+
+      const Pool_ADDRESS = "EQCZ5BCtbFd52Q4gZPuTf40HN9HR5HzAnnFNgQBdvFiQUAsk";
+      const poolCoreAddress = Address.parse(Pool_ADDRESS);
+
+      const sampleJetton = client.open(PoolCore.fromAddress(poolCoreAddress));
+
+      const TOKEN_AMOUNT = toNano(fromAmount); // Convert input amount to nano
+
+      await sampleJetton.send(
+        sender,
+        {
+          value: toNano('0.05'),
+        },
+        {
+          $$type: 'PoolSell',
+          jettonAddress: Address.parse(token?.tokenAddress || ''),
+          to: Address.parse(tonConnectUI.account!.address),
+          amount: TOKEN_AMOUNT,
+        }
+      );
+
+      toast.success('Sell transaction submitted!');
+      await getTokenPrice(); // Refresh price data
+    } catch (error) {
+      console.error('Error selling tokens:', error);
+      toast.error('Failed to sell tokens');
     } finally {
       setLoading(false);
     }
@@ -719,7 +747,7 @@ token.networkType === 'mainnet' && (
                           : 'text-gray-400 hover:text-white'
                       }`}
                     >
-                      Buy
+                      Buy Dude
                     </button>
                     <button
                       onClick={() => setTradeTab('sell')}
@@ -729,7 +757,7 @@ token.networkType === 'mainnet' && (
                           : 'text-gray-400 hover:text-white'
                       }`}
                     >
-                      Sell
+                      Sell Bro
                     </button>
                   </div>
 
@@ -737,10 +765,13 @@ token.networkType === 'mainnet' && (
                     <div className="bg-gray-900/50 rounded-lg p-4">
                       <div className="flex justify-between mb-2">
                         <span className="text-gray-400">
-                          {tradeTab === 'buy' ? 'Pay' : 'Sell Amount'}
+                          {tradeTab === 'buy' ? 'Pay (TON)' : `Pay (${token?.symbol})`}
                         </span>
                         <span className="text-gray-400">
-                          Balance: {tradeTab === 'buy' ? '100 TON' : `0.00 ${token.symbol}`}
+                          Balance: {tradeTab === 'buy' 
+                            ? `${tonBalance} TON` 
+                            : `${tokenBalance} ${token?.symbol}`
+                          }
                         </span>
                       </div>
                       <div className="flex items-center">
@@ -754,11 +785,14 @@ token.networkType === 'mainnet' && (
                         <div className="flex items-center gap-2">
                           {tradeTab === 'buy' ? (
                             <>
+                          <img src="https://ton.org/download/ton_logo_light_background.png" alt="ton" className="w-6 h-6 rounded-full" />
+                          <span className="text-white">TON</span>
+                          </>
+                          ) : (
+                            <>
                               <img src={token?.imageUrl} alt={token?.symbol} className="w-6 h-6 rounded-full" />
                               <span className="text-white">{token?.symbol}</span>
                             </>
-                          ) : (
-                            <span className="text-white">TON</span>
                           )}
                         </div>
                       </div>
@@ -767,10 +801,10 @@ token.networkType === 'mainnet' && (
                     <div className="bg-gray-900/50 rounded-lg p-4">
                       <div className="flex justify-between mb-2">
                         <span className="text-gray-400">
-                          {tradeTab === 'buy' ? 'Receive' : 'Receive'}
+                          {tradeTab === 'buy' ? `Receive (${token?.symbol})` : 'Receive (TON)'}
                         </span>
                         <span className="text-gray-400">
-                          Price: 1 {token.symbol} = {token.price?.toFixed(4)} TON
+                          Price: 1 {token?.symbol} = {token?.price?.toFixed(4)} TON
                         </span>
                       </div>
                       <div className="flex items-center">
@@ -788,7 +822,10 @@ token.networkType === 'mainnet' && (
                               <span className="text-white">{token?.symbol}</span>
                             </>
                           ) : (
+                            <>
+                            <img src="https://ton.org/download/ton_logo_light_background.png" alt="ton" className="w-6 h-6 rounded-full" />
                             <span className="text-white">TON</span>
+                            </>
                           )}
                         </div>
                       </div>
@@ -828,7 +865,7 @@ token.networkType === 'mainnet' && (
                     </div>
 
                     <Button 
-                      onClick={handleTrade}
+                      onClick={tradeTab === 'buy' ? BuyJetton : SellJetton}
                       disabled={loading || !fromAmount || !tonConnectUI.connected}
                       className={`w-full ${
                         tradeTab === 'buy' 

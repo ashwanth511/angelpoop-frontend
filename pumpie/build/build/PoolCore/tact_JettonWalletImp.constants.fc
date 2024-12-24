@@ -1,9 +1,0 @@
-;; String "dump("Identified JettonWalletImp")"
-slice __gen_slice_string_c2b99a3ed72a2749c5451ecf01f7c92da69c4d1575a3f7d2d720628d6ceae869() asm """
-    B{b5ee9c7241010101002400004464756d7028224964656e746966696564204a6574746f6e57616c6c6574496d70222930b41e89} B>boc <s PUSHSLICE
-""";
-
-;; String "Identified JettonWalletImp"
-slice __gen_slice_string_0fafea2961d676273e996dd5f22eba7a7f9ed7635ffaf803b5fdba96c7c86f5d() asm """
-    B{b5ee9c7241010101001c0000344964656e746966696564204a6574746f6e57616c6c6574496d7029455e2a} B>boc <s PUSHSLICE
-""";
