@@ -13,7 +13,7 @@ export const agentTemplates = {
       'Create engaging content'
     ],
     default_responses: {
-      greeting: "Hey there! Ready to have some fun? ",
+    
       error: "Oops! Even AI needs a respawn sometimes! Let's try that again. ",
       busy: "Currently in the middle of an epic gaming session! Be right back! "
     }
@@ -32,7 +32,7 @@ export const agentTemplates = {
       'Guide users through features'
     ],
     default_responses: {
-      greeting: "Welcome! How can I assist you today? ",
+     
       error: "I encountered an error. Please try your request again. ",
       busy: "Processing your request. One moment please. "
     }
@@ -51,7 +51,7 @@ export const agentTemplates = {
       'Share community updates'
     ],
     default_responses: {
-      greeting: "Hi there! Great to see you in our community! ",
+     
       error: "Oops! Let's try that again together! ",
       busy: "Connecting with others at the moment. Back soon! "
     }
@@ -70,7 +70,7 @@ export const agentTemplates = {
       'Track market trends'
     ],
     default_responses: {
-      greeting: "Welcome to DeFi insights. How may I assist you? ",
+     
       error: "Unable to process request. Please try again. ",
       busy: "Analyzing market data. One moment please. "
     }

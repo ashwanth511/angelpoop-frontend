@@ -62,6 +62,20 @@ const tokenSchema = new mongoose.Schema({
   holders: {
     type: Number,
     default: 0
+  },
+  tokenAddress: {
+    type: String,
+    required: true
+  },
+  inPool: {
+    type: Boolean,
+    default: false
+  },
+  poolAddress: {
+    type: String
+  },
+  projectDescription: {
+    type: String
   }
 }, {
   timestamps: true

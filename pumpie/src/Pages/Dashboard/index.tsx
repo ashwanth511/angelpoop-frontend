@@ -1,109 +1,174 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
+import { NavBar } from '@/components/Blocks/Navbar';
+import { api } from '../../services/api';
+import { TokenData } from '../../types';
 import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { ArrowRight } from 'lucide-react';
-import { useTonConnectUI } from '@tonconnect/ui-react';
 
 export const Dashboard = () => {
   const navigate = useNavigate();
-  const [tokens, setTokens] = useState<any[]>([]);
-  const [tonConnectUI] = useTonConnectUI();
+  const [tokens, setTokens] = useState<TokenData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('recent');
 
   useEffect(() => {
-    const loadTokens = () => {
-      const storedTokens = localStorage.getItem('tokens');
-      if (storedTokens) {
-        setTokens(JSON.parse(storedTokens));
+    const fetchTokens = async () => {
+      try {
+        const response = await api.getTokens();
+        if (response.success) {
+          setTokens(response.tokens);
+        }
+      } catch (error) {
+        console.error('Error fetching tokens:', error);
+      } finally {
+        setLoading(false);
       }
     };
-    loadTokens();
+
+    fetchTokens();
   }, []);
 
-  const handleTokenClick = (tokenId: string) => {
-    navigate(`/token/${tokenId}`);
-  };
+  // Filter tokens based on their status
+  const recentlyLaunched = tokens.filter(token => 
+    // Show all tokens launched in last 7 days
+    Date.now() - new Date(token.createdAt).getTime() < 7 * 24 * 60 * 60 * 1000 // 7 days
+  );
 
-  const formatNumber = (num: number) => {
-    if (num >= 1000000) {
-      return `$${(num / 1000000).toFixed(1)}m`;
-    } else if (num >= 1000) {
-      return `$${(num / 1000).toFixed(1)}k`;
-    }
-    return `$${num.toFixed(1)}`;
-  };
+  const listedTokens = tokens.filter(token => 
+    // Show all tokens that are ready for DEX
+    token.liquidityProgress >= 100
+  );
+
+  const inPoolTokens = tokens.filter(token => 
+    // Show all tokens that are in pool but not yet DEX ready
+    token.inPool === true && token.liquidityProgress < 100
+  );
+
+  const renderTokenCard = (token: TokenData) => (
+    <Card 
+      key={token._id} 
+      className="p-4 cursor-pointer hover:bg-gray-800 transition-colors"
+      onClick={() => navigate(`/token/${token._id}`)}
+    >
+      <div className="flex items-center space-x-4">
+        <img src={token.imageUrl} alt={token.name} className="w-12 h-12 rounded-full" />
+        <div className="flex-1">
+          <h3 className="text-lg font-semibold">{token.name}</h3>
+          <div className="flex items-center gap-2">
+            <p className="text-sm text-gray-400">{token.symbol}</p>
+            {token.inPool && (
+              <span className="px-2 py-0.5 text-xs bg-green-500/20 text-green-400 rounded-full">
+                In Pool
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="text-right">
+          <p className="text-lg">${token.price?.toFixed(4) || '0.00'}</p>
+          <p className="text-sm text-gray-400">
+            {token.inPool ? `Liquidity: ${token.liquidityProgress?.toFixed(1) || '0'}%` : 'Not in Pool'}
+          </p>
+        </div>
+      </div>
+    </Card>
+  );
 
   return (
-    <div className="container mx-auto p-6">
-      <div className="flex  items-center p-5 mb-6">
-        <h1 className="text-2xl font-bold text-white">All Sentient AI Agents</h1>
-      
-      </div>
-      <div className="flex justify-end items-center p-5 ml-4 mb-6">
-        <Button onClick={() => navigate('/launch')} className="bg-[#00FFA3] text-black hover:bg-[#00DD8C]">
-          Create New AI Agent
-        </Button>
-        <Button onClick={() => navigate('/tokens')} className="bg-[#00FFA3] text-black hover:bg-[#00DD8C]">
-       <ArrowRight/>   Tokens
-        </Button>
+    <div className="min-h-screen bg-black text-white">
+      <NavBar />
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold">Token Dashboard</h1>
+          <div className="flex items-center space-x-4">
+            <Button onClick={() => navigate('/launch')} className="bg-[#00FFA3] text-black hover:bg-[#00DD8C]">
+              Create New AI Agent
+            </Button>
+            <Button onClick={() => navigate('/tokens')} className="bg-[#00FFA3] text-black hover:bg-[#00DD8C] flex items-center gap-2">
+              Tokens <ArrowRight className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+        {/* Custom Tabs */}
+        <div className="flex space-x-4 mb-8 border-b border-gray-800">
+
+          <button
+            className={`px-4 py-2 text-sm font-medium ${
+              activeTab === 'recent'
+                ? 'text-blue-500 border-b-2 border-blue-500'
+                : 'text-gray-400 hover:text-gray-300'
+            }`}
+            onClick={() => setActiveTab('recent')}
+          >
+            Recently Launched
+          </button>
+          <button
+            className={`px-4 py-2 text-sm font-medium ${
+              activeTab === 'listed'
+                ? 'text-blue-500 border-b-2 border-blue-500'
+                : 'text-gray-400 hover:text-gray-300'
+            }`}
+            onClick={() => setActiveTab('listed')}
+          >
+            Listed Tokens
+          </button>
+          <button
+            className={`px-4 py-2 text-sm font-medium ${
+              activeTab === 'pool'
+                ? 'text-blue-500 border-b-2 border-blue-500'
+                : 'text-gray-400 hover:text-gray-300'
+            }`}
+            onClick={() => setActiveTab('pool')}
+          >
+            In Pool
+          </button>
         </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full bg-gray-900 rounded-lg">
-          <thead>
-            <tr className="text-left text-gray-400 border-b border-gray-800">
-              <th className="p-4">AI Agents</th>
-              <th className="p-4">Market Cap</th>
-              <th className="p-4">24h</th>
-              <th className="p-4">Total Value Locked</th>
-              <th className="p-4">Holders Count</th>
-              <th className="p-4">24h Vol</th>
-              <th className="p-4">Inferences</th>
-            </tr>
-          </thead>
-          <tbody>
-            {tokens.map((token) => (
-              <tr 
-                key={token.id}
-                onClick={() => handleTokenClick(token.id)}
-                className="border-b border-gray-800 hover:bg-gray-800 cursor-pointer"
-              >
-                <td className="p-4">
-                  <div className="flex items-center space-x-3">
-                    <img 
-                      src={token.imageUrl} 
-                      alt={token.name} 
-                      className="w-10 h-10 rounded-full"
-                    />
-                    <div>
-                      <div className="font-semibold text-white">{token.name}</div>
-                      <div className="flex items-center space-x-2">
-                        <span className="text-sm text-gray-400">${token.symbol}</span>
-                        <span className={`px-2 py-0.5 text-xs rounded-full ${
-                          token.agent.type === 'Productivity' ? 'bg-orange-500/20 text-orange-300' :
-                          token.agent.type === 'Entertainment' ? 'bg-cyan-500/20 text-cyan-300' :
-                          'bg-purple-500/20 text-purple-300'
-                        }`}>
-                          {token.agent.type}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </td>
-                <td className="p-4 text-white">{formatNumber(token.marketCap)}</td>
-                <td className="p-4">
-                  <span className={`${token.priceChange24h >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                    {token.priceChange24h >= 0 ? '+' : ''}{token.priceChange24h.toFixed(2)}%
-                  </span>
-                </td>
-                <td className="p-4 text-white">{formatNumber(token.totalValueLocked || 0)}</td>
-                <td className="p-4 text-white">{token.holders.toLocaleString()}</td>
-                <td className="p-4 text-white">{formatNumber(token.volume24h || 0)}</td>
-                <td className="p-4 text-white">{token.inferences?.toLocaleString() || '0'}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        {/* Tab Content */}
+        <div className="space-y-4">
+          {loading ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+              <p className="mt-2 text-gray-400">Loading tokens...</p>
+            </div>
+          ) : (
+            <>
+              {activeTab === 'recent' && (
+                <div className="space-y-4">
+                  <h2 className="text-xl font-semibold mb-4">Recently Launched Tokens</h2>
+                  {recentlyLaunched.length > 0 ? (
+                    recentlyLaunched.map(renderTokenCard)
+                  ) : (
+                    <p className="text-gray-400">No recently launched tokens</p>
+                  )}
+                </div>
+              )}
+
+              {activeTab === 'listed' && (
+                <div className="space-y-4">
+                  <h2 className="text-xl font-semibold mb-4">Listed Tokens (DEX Ready)</h2>
+                  {listedTokens.length > 0 ? (
+                    listedTokens.map(renderTokenCard)
+                  ) : (
+                    <p className="text-gray-400">No listed tokens</p>
+                  )}
+                </div>
+              )}
+
+              {activeTab === 'pool' && (
+                <div className="space-y-4">
+                  <h2 className="text-xl font-semibold mb-4">Tokens in Pool</h2>
+                  {inPoolTokens.length > 0 ? (
+                    inPoolTokens.map(renderTokenCard)
+                  ) : (
+                    <p className="text-gray-400">No tokens in pool</p>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

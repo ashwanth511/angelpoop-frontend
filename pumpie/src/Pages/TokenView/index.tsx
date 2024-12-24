@@ -4,13 +4,18 @@ import { toast } from 'react-hot-toast';
 import { Button } from '@/components/ui/button';
 
 import { api } from '../../services/api';
-import { createChart, ColorType } from 'lightweight-charts';
+import { createChart } from 'lightweight-charts';
 import { ArrowLeft } from 'lucide-react';
 import { useTonConnectUI } from '@tonconnect/ui-react';
 import { AIAgent } from '@/services/aiAgent';
-import { Forum } from '@/components/Forum/Forum';
+
 import axios from 'axios';
 import { BASE_URL } from '@/config';
+import { Address ,toNano,address,Sender,fromNano} from '@ton/core';
+import { getHttpEndpoint } from "@orbs-network/ton-access";
+import { TonClient } from '@ton/ton';
+import { PoolCore } from '@/wrappers/tact_PoolCore';
+import TonConnectSender from '@/hooks/TonConnectSender';
 
 interface Token {
   id: string;
@@ -28,6 +33,9 @@ interface Token {
   totalValueLocked?: number;
   holders?: number;
   symbol?: string;
+  poolAddress?: string;
+  tokenAddress?: string;
+  inPool?: boolean;
 }
 
 interface ChatMessage {
@@ -57,6 +65,61 @@ export const TokenView = () => {
   const [isAgentLoading, setIsAgentLoading] = useState(true);
   const [agentError, setAgentError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const [currentPrice, setCurrentPrice] = useState<number | null>(null);
+  const [tokenSupply, setTokenSupply] = useState<string | null>(null);
+  const [liquidityProgress, setLiquidityProgress] = useState<number>(0);
+
+  // Target liquidity amount to move to DEX (10,000 TON)
+  const TARGET_LIQUIDITY = toNano('10000');
+  const DEX_URL = token?.networkType === 'testnet' ? 
+    'https://app.dedust.io/swap/testnet' :  // DeDust testnet
+    'https://app.ston.fi/swap';             // Stonfi mainnet
+
+  const calculatePrice = (supply: bigint, amount: bigint): number => {
+    const initialPrice = token?.price || 1;
+    const curveStepness = 0.1; // 10% increase per base amount
+    const baseAmount = toNano('1000'); // 1000 tokens as base amount
+    
+    const currentSupply = supply;
+    const priceMultiplier = 1 + (Number(curveStepness) * (Number(currentSupply) / Number(baseAmount)));
+    return initialPrice * priceMultiplier;
+  };
+
+  const getTokenPrice = async () => {
+    if (!token?.tokenAddress || !token.inPool) return;
+
+    try {
+      const endpoint = await getHttpEndpoint({
+        network: token.networkType === 'testnet' ? "testnet" : "mainnet",
+      });
+
+      const client = new TonClient({ endpoint });
+      const poolCoreAddress = Address.parse("EQABFPp8oXtArlOkPbGlOLXsi9KUT7OWMJ1Eg0sLHY2R54RF");
+      const poolCore = new PoolCore(poolCoreAddress);
+      const contract = client.open(poolCore);
+
+      // Get current liquidity
+      const liquidity = await contract.getGetJettonLiquidity(Address.parse(token.tokenAddress));
+      
+      // Calculate price based on bonding curve
+      const calculatedPrice = calculatePrice(liquidity, BigInt(0));
+
+      // Calculate progress towards DEX migration
+      const progress = Math.min((Number(liquidity) / Number(TARGET_LIQUIDITY)) * 100, 100);
+      setLiquidityProgress(progress);
+
+      // If target liquidity reached, show DEX migration button
+      if (Number(liquidity) >= Number(TARGET_LIQUIDITY)) {
+        toast.success('Target liquidity reached! Token can now be migrated to DEX');
+      }
+
+      setCurrentPrice(calculatedPrice);
+      setTokenSupply(liquidity.toString());
+    } catch (error) {
+      console.error('Error getting token price:', error);
+    }
+  };
 
   useEffect(() => {
     const loadToken = async () => {
@@ -202,6 +265,12 @@ export const TokenView = () => {
     };
   }, [token]);
 
+  useEffect(() => {
+    if (token?.tokenAddress && token.inPool) {
+      getTokenPrice();
+    }
+  }, [token?.tokenAddress, token?.inPool]);
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!message.trim() || !agent || isLoading) return;
@@ -248,6 +317,129 @@ export const TokenView = () => {
       ]);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleTrade = async () => {
+    if (!tonConnectUI.connected) {
+      toast.error('Please connect your wallet first');
+      return;
+    }
+
+    if (!fromAmount || isNaN(Number(fromAmount)) || Number(fromAmount) <= 0) {
+      toast.error('Please enter a valid amount');
+      return;
+    }
+
+    // Check if token is in pool
+    if (!token?.inPool) {
+      toast.error('This token is not in the pool yet');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const sender = new TonConnectSender(tonConnectUI.connector);
+      const endpoint = await getHttpEndpoint({
+        network: token.networkType === 'testnet' ? "testnet" : "mainnet",
+      });
+
+      const client = new TonClient({ endpoint });
+      const poolCoreAddress = Address.parse(token.poolAddress || "EQABFPp8oXtArlOkPbGlOLXsi9KUT7OWMJ1Eg0sLHY2R54RF");
+      const poolCore = new PoolCore(poolCoreAddress);
+      const contract = client.open(poolCore);
+
+      // Parse token address
+      let tokenAddress: Address;
+      try {
+        tokenAddress = Address.parse(token.tokenAddress!);
+      } catch (error) {
+        console.error('Error parsing token address:', error);
+        toast.error('Invalid token address');
+        return;
+      }
+
+      // Calculate price impact
+      const supply = BigInt(tokenSupply || '0');
+      const amount = toNano(fromAmount);
+      const priceImpact = Number(amount) / (Number(supply) + Number(amount)) * 100;
+
+      if (priceImpact > 10) {
+        const proceed = window.confirm(`Warning: High price impact of ${priceImpact.toFixed(2)}%. Do you want to proceed?`);
+        if (!proceed) {
+          setLoading(false);
+          return;
+        }
+      }
+
+      // Get user's address for receiving tokens/TON
+      const userAddress = Address.parse(tonConnectUI.account!.address);
+
+      if (tradeTab === 'buy') {
+        // Buy tokens
+        await contract.send(
+          sender,
+          {
+            value: toNano(fromAmount).add(toNano('0.1')), // Amount + gas
+            bounce: false
+          },
+          {
+            $$type: 'PoolBuy',
+            jettonAddress: tokenAddress,
+            to: userAddress,
+            amount: toNano(fromAmount)
+          }
+        );
+        toast.success(`Buying ${fromAmount} ${token.symbol}...`);
+      } else {
+        // For sell, we need to approve token transfer first
+        const jettonWallet = client.open(new JettonWallet(tokenAddress));
+        
+        // First approve tokens
+        await jettonWallet.send(
+          sender,
+          {
+            value: toNano('0.1'), // Gas fee
+            bounce: false
+          },
+          {
+            $$type: 'ApproveTokens',
+            spender: poolCoreAddress,
+            amount: toNano(fromAmount)
+          }
+        );
+
+        // Then sell tokens
+        await contract.send(
+          sender,
+          {
+            value: toNano('0.1'), // Gas fee
+            bounce: false
+          },
+          {
+            $$type: 'PoolSell',
+            jettonAddress: tokenAddress,
+            to: userAddress,
+            amount: toNano(fromAmount)
+          }
+        );
+        toast.success(`Selling ${fromAmount} ${token.symbol}...`);
+      }
+
+      // Clear input after successful transaction
+      setFromAmount('');
+      
+      // Update token data
+      await getTokenPrice();
+      await fetchToken();
+
+      // Show success message
+      toast.success(`${tradeTab === 'buy' ? 'Buy' : 'Sell'} transaction submitted!`);
+    } catch (error: any) {
+      console.error('Error trading:', error);
+      toast.error(`Failed to ${tradeTab} tokens: ${error.message}`);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -388,12 +580,6 @@ token.networkType === 'mainnet' && (
                   </span>
                 ) 
                 }
-
-             
-
-
-
-
 
               </div>
             </div>
@@ -549,14 +735,14 @@ token.networkType === 'mainnet' && (
                           placeholder="0.0"
                           className="bg-transparent text-xl text-white outline-none flex-1"
                         />
-                        <div className="flex items-center space-x-2 ml-2 px-4 py-2 rounded-lg bg-gray-700">
+                        <div className="flex items-center gap-2">
                           {tradeTab === 'buy' ? (
-                            <span className="text-white">TON</span>
-                          ) : (
                             <>
-                              <img src={token.imageUrl} alt={token.symbol} className="w-6 h-6 rounded-full" />
-                              <span className="text-white">{token.symbol}</span>
+                              <img src={token?.imageUrl} alt={token?.symbol} className="w-6 h-6 rounded-full" />
+                              <span className="text-white">{token?.symbol}</span>
                             </>
+                          ) : (
+                            <span className="text-white">TON</span>
                           )}
                         </div>
                       </div>
@@ -575,15 +761,15 @@ token.networkType === 'mainnet' && (
                         <input
                           type="number"
                           placeholder="0.0"
-                          value={(parseFloat(fromAmount || '0') * (token.price || 0)).toFixed(4)}
+                          value={(parseFloat(fromAmount || '0') * (currentPrice || 0)).toFixed(4)}
                           disabled
                           className="bg-transparent text-xl text-white outline-none flex-1"
                         />
-                        <div className="flex items-center space-x-2 ml-2 px-4 py-2 rounded-lg bg-gray-700">
+                        <div className="flex items-center gap-2 ml-2 px-4 py-2 rounded-lg bg-gray-700">
                           {tradeTab === 'buy' ? (
                             <>
-                              <img src={token.imageUrl} alt={token.symbol} className="w-6 h-6 rounded-full" />
-                              <span className="text-white">{token.symbol}</span>
+                              <img src={token?.imageUrl} alt={token?.symbol} className="w-6 h-6 rounded-full" />
+                              <span className="text-white">{token?.symbol}</span>
                             </>
                           ) : (
                             <span className="text-white">TON</span>
@@ -592,17 +778,60 @@ token.networkType === 'mainnet' && (
                       </div>
                     </div>
 
+                    <div className="mt-4 space-y-2">
+                      <div className="flex justify-between text-sm text-gray-400">
+                        <span>Pool Liquidity</span>
+                        <span>{tokenSupply || '0.00'} {token?.symbol || ''}</span>
+                      </div>
+                      <div className="flex justify-between text-sm text-gray-400">
+                        <span>Price Impact</span>
+                        <span>{((parseFloat(fromAmount || '0') / (parseFloat(tokenSupply || '0') + parseFloat(fromAmount || '0'))) * 100).toFixed(2)}%</span>
+                      </div>
+
+                      {/* Liquidity Progress Bar */}
+                      <div className="mt-4">
+                        <div className="flex justify-between text-sm text-gray-400 mb-1">
+                          <span>Progress to DEX Migration</span>
+                          <span>{liquidityProgress.toFixed(1)}%</span>
+                        </div>
+                        <div className="w-full bg-gray-700 rounded-full h-2.5">
+                          <div 
+                            className="bg-blue-600 h-2.5 rounded-full transition-all duration-500" 
+                            style={{ width: `${liquidityProgress}%` }}
+                          ></div>
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          Target: 10,000 TON
+                        </div>
+                      </div>
+
+                      {/* DEX Migration Button */}
+                      {liquidityProgress >= 100 && (
+                        <div className="mt-4">
+                          <Button
+                            onClick={() => window.open(DEX_URL, '_blank')}
+                            className="w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600"
+                          >
+                            Migrate to {token?.networkType === 'testnet' ? 'DeDust' : 'Stonfi'} 🚀
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+
                     <Button 
-                      onClick={() => {
-                        toast.success(`${tradeTab === 'buy' ? 'Bought' : 'Sold'} ${token.symbol} successfully!`);
-                      }}
+                      onClick={handleTrade}
+                      disabled={loading || !fromAmount || !tonConnectUI.connected}
                       className={`w-full ${
                         tradeTab === 'buy' 
                           ? 'bg-blue-500 hover:bg-blue-600' 
                           : 'bg-red-500 hover:bg-red-600'
                       }`}
                     >
-                      {tradeTab === 'buy' ? 'Buy' : 'Sell'} {token.symbol}
+                      {!tonConnectUI.connected 
+                        ? 'Connect Wallet'
+                        : loading 
+                          ? 'Processing...' 
+                          : `${tradeTab === 'buy' ? 'Buy' : 'Sell'} ${token.symbol}`}
                     </Button>
                   </div>
                 </>

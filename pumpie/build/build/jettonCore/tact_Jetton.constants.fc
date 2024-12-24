@@ -1,0 +1,9 @@
+;; String ""
+slice __gen_slice_string_96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7() asm """
+    B{b5ee9c724101010100020000004cacb9cd} B>boc <s PUSHSLICE
+""";
+
+;; Comment "Ownership transferred successfully"
+cell __gen_cell_comment_eb15a482c66a893b0a9bc3949142573556560952e720d3cc733a0ff4c62dc26c() asm """
+    B{b5ee9c7241010101002800004c000000004f776e657273686970207472616e73666572726564207375636365737366756c6c79df62f356} B>boc PUSHREF
+""";

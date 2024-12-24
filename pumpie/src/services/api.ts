@@ -15,6 +15,9 @@ interface TokenData {
   networkType: 'testnet' | 'mainnet';
   price?: number;
   priceChange24h?: number;
+  tokenAddress?: string;
+  inPool?: boolean;
+  poolAddress?: string;
 }
 
 interface AgentData {
@@ -132,13 +135,35 @@ export const api = {
 
   updateTokenAddress: async (id: string, address: string) => {
     try {
-      console.log('API: Updating token address:', id, address);
-      const response = await axios.patch<ApiResponse<TokenData>>(`${API_BASE_URL}/token/${id}/address`, { address });
+      console.log('API: Updating token address:', { id, address });
+      const response = await axios.patch<ApiResponse<TokenData>>(`${API_BASE_URL}/tokens/${id}/address`, { address });
       console.log('API: Update token address response:', response.data);
       return response.data;
     } catch (error: any) {
       console.error('API: Error updating token address:', error.response?.data || error);
       throw new Error(error.response?.data?.error || 'Failed to update token address');
+    }
+  },
+
+  updateToken: async (data: { id: string } & Partial<TokenData>) => {
+    try {
+      console.log('API: Updating token:', data);
+      // If updating pool status, use the dedicated endpoint
+      if ('inPool' in data) {
+        const response = await axios.patch<ApiResponse<TokenData>>(`${API_BASE_URL}/token/${data.id}/pool`, {
+          inPool: data.inPool,
+          poolAddress: data.poolAddress
+        });
+        console.log('API: Update token pool status response:', response.data);
+        return response.data;
+      }
+      // For other updates, use the general update endpoint
+      const response = await axios.patch<ApiResponse<TokenData>>(`${API_BASE_URL}/token/${data.id}`, data);
+      console.log('API: Update token response:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('API: Error updating token:', error.response?.data || error);
+      throw new Error(error.response?.data?.error || 'Failed to update token');
     }
   }
 };

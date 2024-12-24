@@ -1,13 +1,13 @@
 import React, { useState, ChangeEvent } from 'react';
 import { toast } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
-import { createAIAgent, useAgentStore } from "../../services/aiAgent";
+import { useAgentStore } from "../../services/aiAgent";
 
 import { NavBar } from '@/components/Blocks/Navbar';
 import { api } from '../../services/api';
 import { useTonConnectUI } from '@tonconnect/ui-react';
 import { useNetwork } from '../../context/NetworkContext';
-import { Sender,toNano,Address } from '@ton/core';
+import { toNano,Address } from '@ton/core';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import axios from 'axios';
@@ -30,7 +30,7 @@ export const LaunchToken: React.FC = () => {
   const Max_Supply: bigint = 100000000000000000000n;
   const initial_Price: bigint = 10000n;
   const iinitial_mint_Amount: bigint = 10000000000000n;
-  const PoolCore_ADDRESS = "EQCZ5BCtbFd52Q4gZPuTf40HN9HR5HzAnnFNgQBdvFiQUAsk";
+  const PoolCore_ADDRESS = "EQABFPp8oXtArlOkPbGlOLXsi9KUT7OWMJ1Eg0sLHY2R54RF";
 
   const [formData, setFormData] = useState({
     tokenName: '',
@@ -150,6 +150,7 @@ export const LaunchToken: React.FC = () => {
       }
 
       // Deploy contract first
+      let tokenAddress = '';
       try {
         toast.loading('Deploying token contract...');
         
@@ -182,6 +183,13 @@ export const LaunchToken: React.FC = () => {
           )
         );
 
+        // Get contract address before deployment
+        tokenAddress = sampleJetton.address.toString({
+          testOnly: network === 'testnet',
+          bounceable: true,
+          urlSafe: true
+        });
+
         await sampleJetton.send(
           sender,
           {
@@ -211,7 +219,8 @@ export const LaunchToken: React.FC = () => {
         agentType: formData.agentType,
         creatorAddress: getNonBounceableAddress(wallet.address, network === 'testnet'),
         imageUrl,
-        networkType: network === 'testnet' ? 'testnet' : 'mainnet'
+        networkType: network === 'testnet' ? 'testnet' : 'mainnet',
+        tokenAddress // Add token address here
       };
 
       const response = await api.createToken(tokenData);

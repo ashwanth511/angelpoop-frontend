@@ -1,0 +1,353 @@
+#pragma version =0.4.4;
+#pragma allow-post-modification;
+#pragma compute-asm-ltr;
+
+#include "tact_PoolCore.headers.fc";
+#include "tact_PoolCore.stdlib.fc";
+#include "tact_PoolCore.constants.fc";
+#include "tact_PoolCore.storage.fc";
+
+;;
+;; Contract PoolCore functions
+;;
+
+(slice, cell, cell) $PoolCore$_contract_init() impure inline_ref {
+    var (($self'owner, $self'pools, $self'pendingSells)) = (null(), null(), null());
+    $self'owner = __tact_context_get_sender();
+    $self'pools = null();
+    $self'pendingSells = null();
+    return ($self'owner, $self'pools, $self'pendingSells);
+}
+
+((slice, cell, cell), ()) $PoolCore$_fun__processSell((slice, cell, cell) $self, (slice, slice, int) $sell) impure inline_ref {
+    var (($self'owner, $self'pools, $self'pendingSells)) = $self;
+    var (($sell'jettonAddress, $sell'sender, $sell'amount)) = $sell;
+    $global_send($SendParameters$_constructor_to_value_body_mode($sell'jettonAddress, 0, $SellTokens$_store_cell($SellTokens$_constructor_resAddress_tokenAmount($sell'sender, $sell'amount)), 2));
+    tuple $pool = $JettonPool$_load_opt(__tact_dict_get_slice_cell($self'pools, 267, $sell'jettonAddress));
+    throw_unless(15093, ( ((~ null?($pool))) ? ($JettonPool$_get_isActive($JettonPool$_not_null($pool))) : (false) ));
+    $self'pools~__tact_dict_set_slice_cell(267, $sell'jettonAddress, $JettonPool$_store_cell($JettonPool$_constructor_balance_isActive(($JettonPool$_get_balance($JettonPool$_not_null($pool)) - $sell'amount), true)));
+    $global_send($SendParameters$_constructor_to_value_mode($sell'sender, $sell'amount, 2));
+    $self'pendingSells~__tact_dict_set_slice_cell(267, $sell'sender, $PendingSell$_store_opt(null()));
+    return (($self'owner, $self'pools, $self'pendingSells), ());
+}
+
+((slice, cell, cell), (cell, cell)) $PoolCore$_fun_getJettonInit((slice, cell, cell) $self, slice $owner, cell $content, int $max_supply, int $token_price, int $initial_mint, slice $pool) impure inline_ref {
+    var (($self'owner, $self'pools, $self'pendingSells)) = $self;
+    var $fresh$ret_43 = $JettonCore$_init_child(__tact_context_sys, $owner, $content, $max_supply, $token_price, $initial_mint, $pool);
+    return (($self'owner, $self'pools, $self'pendingSells), $fresh$ret_43);
+}
+
+((slice, cell, cell), int) $PoolCore$_fun_getJettonLiquidity((slice, cell, cell) $self, slice $jettonAddress) impure inline_ref {
+    var (($self'owner, $self'pools, $self'pendingSells)) = $self;
+    tuple $pool = $JettonPool$_load_opt(__tact_dict_get_slice_cell($self'pools, 267, $jettonAddress));
+    throw_unless(15093, ( ((~ null?($pool))) ? ($JettonPool$_get_isActive($JettonPool$_not_null($pool))) : (false) ));
+    var $fresh$ret_44 = $JettonPool$_get_balance($JettonPool$_not_null($pool));
+    return (($self'owner, $self'pools, $self'pendingSells), $fresh$ret_44);
+}
+
+((slice, cell, cell), int) $PoolCore$_fun_hasPool((slice, cell, cell) $self, slice $jettonAddress) impure inline_ref {
+    var (($self'owner, $self'pools, $self'pendingSells)) = $self;
+    tuple $pool = $JettonPool$_load_opt(__tact_dict_get_slice_cell($self'pools, 267, $jettonAddress));
+    var $fresh$ret_45 = ( ((~ null?($pool))) ? ($JettonPool$_get_isActive($JettonPool$_not_null($pool))) : (false) );
+    return (($self'owner, $self'pools, $self'pendingSells), $fresh$ret_45);
+}
+
+((slice, cell, cell), slice) $PoolCore$_fun_getJettonAddress((slice, cell, cell) $self, slice $owner) impure inline_ref {
+    var (($self'owner, $self'pools, $self'pendingSells)) = $self;
+    var ($init'code, $init'data) = ($self'owner, $self'pools, $self'pendingSells)~$PoolCore$_fun_getJettonInit($owner, $Builder$_fun_endCell($global_beginCell()), 0, 0, 0, $global_myAddress());
+    var $fresh$ret_46 = $global_contractAddress(($init'code, $init'data));
+    return (($self'owner, $self'pools, $self'pendingSells), $fresh$ret_46);
+}
+
+((slice, cell, cell), slice) $PoolCore$_fun_owner((slice, cell, cell) $self) impure inline_ref {
+    var (($self'owner, $self'pools, $self'pendingSells)) = $self;
+    var $fresh$ret_47 = $self'owner;
+    return (($self'owner, $self'pools, $self'pendingSells), $fresh$ret_47);
+}
+
+;;
+;; Receivers of a Contract PoolCore
+;;
+
+(((slice, cell, cell)), ()) $PoolCore$_internal_binary_AddJetton((slice, cell, cell) $self, (slice) $msg) impure inline {
+    var ($self'owner, $self'pools, $self'pendingSells) = $self;
+    var ($msg'jettonAddress) = $msg;
+    throw_unless(45732, ( __tact_slice_eq_bits($self'owner, __tact_context_get_sender()) ));
+    tuple $currentPool = $JettonPool$_load_opt(__tact_dict_get_slice_cell($self'pools, 267, $msg'jettonAddress));
+    if ((~ null?($currentPool))) {
+        throw_unless(5530, (~ $JettonPool$_get_isActive($JettonPool$_not_null($currentPool))));
+    }
+    $self'pools~__tact_dict_set_slice_cell(267, $msg'jettonAddress, $JettonPool$_store_cell($JettonPool$_constructor_balance_isActive(0, true)));
+    return (($self'owner, $self'pools, $self'pendingSells), ());
+}
+
+(((slice, cell, cell)), ()) $PoolCore$_internal_binary_PoolBuy((slice, cell, cell) $self, (slice) $msg) impure inline {
+    var ($self'owner, $self'pools, $self'pendingSells) = $self;
+    var ($msg'jettonAddress) = $msg;
+    int $gas = 100000000;
+    int $forward_gas = 50000000;
+    tuple $pool = $JettonPool$_load_opt(__tact_dict_get_slice_cell($self'pools, 267, $msg'jettonAddress));
+    throw_unless(15093, ( ((~ null?($pool))) ? ($JettonPool$_get_isActive($JettonPool$_not_null($pool))) : (false) ));
+    throw_unless(62441, ($Context$_get_value(__tact_context_get()) > ($gas + $forward_gas)));
+    slice $sender_address = __tact_context_get_sender();
+    int $purchase_amount = (($Context$_get_value(__tact_context_get()) - $gas) - $forward_gas);
+    $self'pools~__tact_dict_set_slice_cell(267, $msg'jettonAddress, $JettonPool$_store_cell($JettonPool$_constructor_balance_isActive(($JettonPool$_get_balance($JettonPool$_not_null($pool)) + $purchase_amount), true)));
+    $global_send($SendParameters$_constructor_to_value_bounce_body_mode($msg'jettonAddress, $forward_gas, true, $BuyTokens$_store_cell($BuyTokens$_constructor_resAddress_tonAmount($sender_address, $purchase_amount)), 2));
+    return (($self'owner, $self'pools, $self'pendingSells), ());
+}
+
+(((slice, cell, cell)), ()) $PoolCore$_internal_binary_PoolSell((slice, cell, cell) $self, (slice, slice, int) $msg) impure inline {
+    var ($self'owner, $self'pools, $self'pendingSells) = $self;
+    var ($msg'jettonAddress, $msg'to, $msg'amount) = $msg;
+    int $gas = 100000000;
+    int $forward_gas = 50000000;
+    throw_unless(62441, ($Context$_get_value(__tact_context_get()) > ($gas + $forward_gas)));
+    slice $sender_address = __tact_context_get_sender();
+    tuple $pool = $JettonPool$_load_opt(__tact_dict_get_slice_cell($self'pools, 267, $msg'jettonAddress));
+    throw_unless(15093, ( ((~ null?($pool))) ? ($JettonPool$_get_isActive($JettonPool$_not_null($pool))) : (false) ));
+    $global_send($SendParameters$_constructor_to_value_bounce_body_mode($msg'jettonAddress, $forward_gas, true, $SellTokens$_store_cell($SellTokens$_constructor_resAddress_tokenAmount(__tact_context_get_sender(), $msg'amount)), 2));
+    return (($self'owner, $self'pools, $self'pendingSells), ());
+}
+
+(((slice, cell, cell)), ()) $PoolCore$_internal_binary_WalletDataMessage((slice, cell, cell) $self, (int, slice, slice, cell) $msg) impure inline {
+    var ($self'owner, $self'pools, $self'pendingSells) = $self;
+    var ($msg'balance, $msg'owner, $msg'jetton, $msg'jetton_wallet_code) = $msg;
+    tuple $pendingSell = $PendingSell$_load_opt(__tact_dict_get_slice_cell($self'pendingSells, 267, __tact_context_get_sender()));
+    throw_unless(9899, (~ null?($pendingSell)));
+    throw_unless(15703, ($msg'balance >= $PendingSell$_get_amount($PendingSell$_not_null($pendingSell))));
+    ($self'owner, $self'pools, $self'pendingSells)~$PoolCore$_fun__processSell($PendingSell$_tensor_cast($PendingSell$_not_null($pendingSell)));
+    return (($self'owner, $self'pools, $self'pendingSells), ());
+}
+
+(((slice, cell, cell)), ()) $PoolCore$_internal_binary_DeployJetton((slice, cell, cell) $self, (slice, cell, int, int, int, slice) $msg) impure inline {
+    var ($self'owner, $self'pools, $self'pendingSells) = $self;
+    var ($msg'owner, $msg'content, $msg'max_supply, $msg'token_price, $msg'initial_mint, $msg'pool) = $msg;
+    int $gas = 100000000;
+    int $forward_gas = 50000000;
+    throw_unless(47483, ($Context$_get_value(__tact_context_get()) > ($gas + $forward_gas)));
+    var ($stateInit'code, $stateInit'data) = $JettonCore$_init_child(__tact_context_sys, $msg'owner, $msg'content, $msg'max_supply, $msg'token_price, $msg'initial_mint, $msg'pool);
+    $global_send($SendParameters$_constructor_to_value_bounce_mode_code_data($global_contractAddress(($stateInit'code, $stateInit'data)), $forward_gas, false, 64, $stateInit'code, $stateInit'data));
+    slice $jettonAddress = $global_contractAddress(($stateInit'code, $stateInit'data));
+    $self'pools~__tact_dict_set_slice_cell(267, $jettonAddress, $JettonPool$_store_cell($JettonPool$_constructor_balance_isActive(0, true)));
+    return (($self'owner, $self'pools, $self'pendingSells), ());
+}
+
+(((slice, cell, cell)), ()) $PoolCore$_internal_binary_WithdrawFromPool((slice, cell, cell) $self, (slice, int) $msg) impure inline {
+    var ($self'owner, $self'pools, $self'pendingSells) = $self;
+    var ($msg'jettonAddress, $msg'amount) = $msg;
+    throw_unless(26825, ( __tact_slice_eq_bits($self'owner, __tact_context_get_sender()) ));
+    tuple $pool = $JettonPool$_load_opt(__tact_dict_get_slice_cell($self'pools, 267, $msg'jettonAddress));
+    throw_unless(42120, ( ((~ null?($pool))) ? ($JettonPool$_get_isActive($JettonPool$_not_null($pool))) : (false) ));
+    throw_unless(57964, ($JettonPool$_get_balance($JettonPool$_not_null($pool)) >= $msg'amount));
+    int $forward_amount = $msg'amount;
+    int $remain_value = $Context$_get_value(__tact_context_get());
+    throw_unless(21185, ($remain_value >= 50000000));
+    $self'pools~__tact_dict_set_slice_cell(267, $msg'jettonAddress, $JettonPool$_store_cell($JettonPool$_constructor_balance_isActive(($JettonPool$_get_balance($JettonPool$_not_null($pool)) - $msg'amount), true)));
+    $global_send($SendParameters$_constructor_to_value_bounce_mode($self'owner, $forward_amount, false, 2));
+    return (($self'owner, $self'pools, $self'pendingSells), ());
+}
+
+((slice, cell, cell), ()) $PoolCore$_internal_text_daf22b7d9100b4b0a6eee98fc348466214750841781c63037d6052e57cbe5ea4((slice, cell, cell) $self) impure inline {
+    var ($self'owner, $self'pools, $self'pendingSells) = $self;
+    throw_unless(26825, ( __tact_slice_eq_bits($self'owner, __tact_context_get_sender()) ));
+    int $amount = ($global_myBalance() - 100000000);
+    if (($amount > 0)) {
+        $global_send($SendParameters$_constructor_to_value_bounce_mode($self'owner, $amount, false, 66));
+    }
+    return (($self'owner, $self'pools, $self'pendingSells), ());
+}
+
+((slice, cell, cell), ()) $PoolCore$_internal_text_7cd04acd8fcc66cb4ccf305ef78247231df393eb9d90289e470ce02b2cb40306((slice, cell, cell) $self) impure inline {
+    var ($self'owner, $self'pools, $self'pendingSells) = $self;
+    throw_unless(26825, ( __tact_slice_eq_bits($self'owner, __tact_context_get_sender()) ));
+    int $remain_value = $Context$_get_value(__tact_context_get());
+    throw_unless(21185, ($remain_value >= 50000000));
+    int $total = 0;
+    cell $pools_map = $self'pools;
+    cell $keys = null();
+    slice $addr = __tact_load_address$not_mut($Cell$_fun_asSlice($Builder$_fun_endCell($global_beginCell())));
+    tuple $pool = $JettonPool$_load_opt(__tact_dict_get_slice_cell($self'pools, 267, $addr));
+    while ((~ null?($pool))) {
+        if ($JettonPool$_get_isActive($JettonPool$_not_null($pool))) {
+            $total = ($total + $JettonPool$_get_balance($JettonPool$_not_null($pool)));
+            $self'pools~__tact_dict_set_slice_cell(267, $addr, $JettonPool$_store_cell($JettonPool$_constructor_balance_isActive(0, true)));
+        }
+        $addr = __tact_load_address$not_mut($Cell$_fun_asSlice($Builder$_fun_endCell($global_beginCell())));
+        $pool = $JettonPool$_load_opt(__tact_dict_get_slice_cell($self'pools, 267, $addr));
+    }
+    if (($total > 0)) {
+        $global_send($SendParameters$_constructor_to_value_bounce_mode_body($self'owner, $total, false, 2, __gen_cell_comment_e3dde182b9b298772691a0bc6eda6e0815fd36428ea59b90af4bcec9c7b28d3b()));
+    }
+    return (($self'owner, $self'pools, $self'pendingSells), ());
+}
+
+(((slice, cell, cell)), ()) $PoolCore$_internal_binary_BurnNotificationWithTon((slice, cell, cell) $self, (int, int, slice) $msg) impure inline {
+    var ($self'owner, $self'pools, $self'pendingSells) = $self;
+    var ($msg'amount, $msg'tokenAmount, $msg'user) = $msg;
+    slice $jettonAddress = __tact_context_get_sender();
+    tuple $pool = $JettonPool$_load_opt(__tact_dict_get_slice_cell($self'pools, 267, $jettonAddress));
+    throw_unless(15093, ( ((~ null?($pool))) ? ($JettonPool$_get_isActive($JettonPool$_not_null($pool))) : (false) ));
+    int $newBalance = ($JettonPool$_get_balance($JettonPool$_not_null($pool)) - $msg'amount);
+    throw_unless(57964, ($newBalance >= 0));
+    $self'pools~__tact_dict_set_slice_cell(267, $jettonAddress, $JettonPool$_store_cell($JettonPool$_constructor_balance_isActive($newBalance, true)));
+    $global_send($SendParameters$_constructor_to_value_bounce_mode($msg'user, $msg'amount, false, 2));
+    return (($self'owner, $self'pools, $self'pendingSells), ());
+}
+
+(((slice, cell, cell)), ()) $PoolCore$_internal_binary_Deploy((slice, cell, cell) $self, (int) $deploy) impure inline {
+    var ($self'owner, $self'pools, $self'pendingSells) = $self;
+    var ($deploy'queryId) = $deploy;
+    ($self'owner, $self'pools, $self'pendingSells)~$PoolCore$_fun_notify($DeployOk$_store_cell($DeployOk$_constructor_queryId($deploy'queryId)));
+    return (($self'owner, $self'pools, $self'pendingSells), ());
+}
+
+;;
+;; Get methods of a Contract PoolCore
+;;
+
+_ %getJettonLiquidity(slice $jettonAddress) method_id(66105) {
+    slice $jettonAddress = __tact_verify_address($jettonAddress);
+    var self = $PoolCore$_contract_load();
+    var res = self~$PoolCore$_fun_getJettonLiquidity($jettonAddress);
+    return res;
+}
+
+_ %hasPool(slice $jettonAddress) method_id(113924) {
+    slice $jettonAddress = __tact_verify_address($jettonAddress);
+    var self = $PoolCore$_contract_load();
+    var res = self~$PoolCore$_fun_hasPool($jettonAddress);
+    return res;
+}
+
+_ %getJettonAddress(slice $owner) method_id(82160) {
+    slice $owner = __tact_verify_address($owner);
+    var self = $PoolCore$_contract_load();
+    var res = self~$PoolCore$_fun_getJettonAddress($owner);
+    return res;
+}
+
+_ %owner() method_id(83229) {
+    var self = $PoolCore$_contract_load();
+    var res = self~$PoolCore$_fun_owner();
+    return res;
+}
+
+_ lazy_deployment_completed() method_id {
+    return get_data().begin_parse().load_int(1);
+}
+
+;;
+;; Routing of a Contract PoolCore
+;;
+
+((slice, cell, cell), int) $PoolCore$_contract_router_internal((slice, cell, cell) self, int msg_bounced, slice in_msg) impure inline_ref {
+    ;; Handle bounced messages
+    if (msg_bounced) {
+        return (self, true);
+    }
+    
+    ;; Parse incoming message
+    int op = 0;
+    if (slice_bits(in_msg) >= 32) {
+        op = in_msg.preload_uint(32);
+    }
+    
+    
+    ;; Receive AddJetton message
+    if (op == 1824497237) {
+        var msg = in_msg~$AddJetton$_load();
+        self~$PoolCore$_internal_binary_AddJetton(msg);
+        return (self, true);
+    }
+    
+    ;; Receive PoolBuy message
+    if (op == 843028996) {
+        var msg = in_msg~$PoolBuy$_load();
+        self~$PoolCore$_internal_binary_PoolBuy(msg);
+        return (self, true);
+    }
+    
+    ;; Receive PoolSell message
+    if (op == 2040629039) {
+        var msg = in_msg~$PoolSell$_load();
+        self~$PoolCore$_internal_binary_PoolSell(msg);
+        return (self, true);
+    }
+    
+    ;; Receive WalletDataMessage message
+    if (op == 4074162984) {
+        var msg = in_msg~$WalletDataMessage$_load();
+        self~$PoolCore$_internal_binary_WalletDataMessage(msg);
+        return (self, true);
+    }
+    
+    ;; Receive DeployJetton message
+    if (op == 1581859115) {
+        var msg = in_msg~$DeployJetton$_load();
+        self~$PoolCore$_internal_binary_DeployJetton(msg);
+        return (self, true);
+    }
+    
+    ;; Receive WithdrawFromPool message
+    if (op == 3812297287) {
+        var msg = in_msg~$WithdrawFromPool$_load();
+        self~$PoolCore$_internal_binary_WithdrawFromPool(msg);
+        return (self, true);
+    }
+    
+    ;; Receive BurnNotificationWithTon message
+    if (op == 193322806) {
+        var msg = in_msg~$BurnNotificationWithTon$_load();
+        self~$PoolCore$_internal_binary_BurnNotificationWithTon(msg);
+        return (self, true);
+    }
+    
+    ;; Receive Deploy message
+    if (op == 2490013878) {
+        var msg = in_msg~$Deploy$_load();
+        self~$PoolCore$_internal_binary_Deploy(msg);
+        return (self, true);
+    }
+    
+    ;; Text Receivers
+    if (op == 0) {
+        var text_op = slice_hash(in_msg);
+        
+        ;; Receive "withdrawAllTon" message
+        if (text_op == 0xdaf22b7d9100b4b0a6eee98fc348466214750841781c63037d6052e57cbe5ea4) {
+            self~$PoolCore$_internal_text_daf22b7d9100b4b0a6eee98fc348466214750841781c63037d6052e57cbe5ea4();
+            return (self, true);
+        }
+        
+        ;; Receive "withdraw_all" message
+        if (text_op == 0x7cd04acd8fcc66cb4ccf305ef78247231df393eb9d90289e470ce02b2cb40306) {
+            self~$PoolCore$_internal_text_7cd04acd8fcc66cb4ccf305ef78247231df393eb9d90289e470ce02b2cb40306();
+            return (self, true);
+        }
+    }
+    
+    return (self, false);
+}
+
+() recv_internal(int msg_value, cell in_msg_cell, slice in_msg) impure {
+    
+    ;; Context
+    var cs = in_msg_cell.begin_parse();
+    var msg_flags = cs~load_uint(4);
+    var msg_bounced = -(msg_flags & 1);
+    slice msg_sender_addr = __tact_verify_address(cs~load_msg_addr());
+    __tact_context = (msg_bounced, msg_sender_addr, msg_value, cs);
+    __tact_context_sender = msg_sender_addr;
+    
+    ;; Load contract data
+    var self = $PoolCore$_contract_load();
+    
+    ;; Handle operation
+    int handled = self~$PoolCore$_contract_router_internal(msg_bounced, in_msg);
+    
+    ;; Throw if not handled
+    throw_unless(130, handled);
+    
+    ;; Persist state
+    $PoolCore$_contract_store(self);
+}

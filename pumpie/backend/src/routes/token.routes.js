@@ -1,20 +1,15 @@
 const express = require('express');
 const router = express.Router();
-const Token = require('../models/token.model');
+const tokenService = require('../services/token.service');
 
 // Create a new token
 router.post('/create-token', async (req, res) => {
   try {
-    const token = new Token(req.body);
-    const savedToken = await token.save();
-    const tokenObj = savedToken.toObject();
+    const token = await tokenService.createToken(req.body);
     res.json({
       success: true,
       message: 'Token created successfully',
-      token: {
-        ...tokenObj,
-        id: tokenObj._id
-      }
+      token
     });
   } catch (error) {
     console.error('Error creating token:', error);
@@ -28,16 +23,10 @@ router.post('/create-token', async (req, res) => {
 // Get all tokens
 router.get('/tokens', async (req, res) => {
   try {
-    const tokens = await Token.find().sort({ createdAt: -1 });
+    const tokens = await tokenService.getAllTokens();
     res.json({
       success: true,
-      tokens: tokens.map(token => {
-        const tokenObj = token.toObject();
-        return {
-          ...tokenObj,
-          id: tokenObj._id
-        };
-      })
+      tokens
     });
   } catch (error) {
     console.error('Error fetching tokens:', error);
@@ -51,20 +40,16 @@ router.get('/tokens', async (req, res) => {
 // Get token by ID
 router.get('/token/:id', async (req, res) => {
   try {
-    const token = await Token.findById(req.params.id);
+    const token = await tokenService.getTokenById(req.params.id);
     if (!token) {
       return res.status(404).json({
         success: false,
         error: 'Token not found'
       });
     }
-    const tokenObj = token.toObject();
     res.json({
       success: true,
-      token: {
-        ...tokenObj,
-        id: tokenObj._id
-      }
+      token
     });
   } catch (error) {
     console.error('Error fetching token:', error);
@@ -78,30 +63,45 @@ router.get('/token/:id', async (req, res) => {
 // Update token address
 router.patch('/token/:id/address', async (req, res) => {
   try {
-    const token = await Token.findByIdAndUpdate(
-      req.params.id,
-      { creatorAddress: req.body.address },
-      { new: true }
-    );
+    const token = await tokenService.updateTokenAddress(req.params.id, req.body.address);
     if (!token) {
       return res.status(404).json({
         success: false,
         error: 'Token not found'
       });
     }
-    const tokenObj = token.toObject();
     res.json({
       success: true,
-      token: {
-        ...tokenObj,
-        id: tokenObj._id
-      }
+      token
     });
   } catch (error) {
     console.error('Error updating token address:', error);
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to update token address'
+    });
+  }
+});
+
+// Update token pool status
+router.patch('/token/:id/pool', async (req, res) => {
+  try {
+    const token = await tokenService.updateTokenPool(req.params.id, req.body);
+    if (!token) {
+      return res.status(404).json({
+        success: false,
+        error: 'Token not found'
+      });
+    }
+    res.json({
+      success: true,
+      token
+    });
+  } catch (error) {
+    console.error('Error updating token pool status:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to update token pool status'
     });
   }
 });

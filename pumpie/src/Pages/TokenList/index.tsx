@@ -2,12 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { toast } from 'react-hot-toast';
-import { NavBar } from '@/components/Blocks/Navbar';
+
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
+import { useTonConnectUI } from '@tonconnect/ui-react';
+import { Address, toNano } from '@ton/core';
+import { getHttpEndpoint } from "@orbs-network/ton-access";
+import { TonClient } from '@ton/ton';
+import { PoolCore } from '@/wrappers/tact_PoolCore';
+import TonConnectSender from '@/hooks/TonConnectSender';
 import { api } from '../../services/api';
 import type { TokenData } from '../../services/api';
-import { useTonConnectUI } from '@tonconnect/ui-react';
+import { LiquidityModal } from './LiquidityModal';
+import { Copy } from 'lucide-react';
 
 const Container = styled.div`
   padding: 2rem;
@@ -37,7 +44,7 @@ const Grid = styled.div`
   gap: 1.5rem;
 `;
 
-const TokenCard = styled.div`
+const Card = styled.div`
   background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(10px);
   border-radius: 12px;
@@ -70,6 +77,11 @@ const TokenName = styled.h3`
   font-weight: 600;
   color: white;
   margin-bottom: 0.5rem;
+`;
+
+const TokenSymbol = styled.span`
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.6);
 `;
 
 const TokenType = styled.span`
@@ -124,6 +136,213 @@ export const TokenList: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [tonConnectUI] = useTonConnectUI();
+  const [loading, setLoading] = useState(false);
+  const [selectedToken, setSelectedToken] = useState<TokenData | null>(null);
+  const [isLiquidityModalOpen, setIsLiquidityModalOpen] = useState(false);
+
+  const getNonBounceableAddress = (address: string, isTestnet: boolean): string => {
+    try {
+      let addr;
+      if (address.match(/^(EQ|UQ|kQ|0Q)/)) {
+        const parsed = Address.parseFriendly(address);
+        addr = parsed.address;
+      } else {
+        addr = Address.parse(address);
+      }
+      return addr.toString({
+        testOnly: isTestnet,
+        bounceable: false,
+        urlSafe: true
+      });
+    } catch (error) {
+      console.error('Address conversion error:', error);
+      return address;
+    }
+  };
+
+  const checkTokenInPool = async (tokenAddress: string, networkType: string) => {
+    try {
+      const endpoint = await getHttpEndpoint({
+        network: networkType === 'testnet' ? "testnet" : "mainnet",
+      });
+
+      const client = new TonClient({ endpoint });
+      const poolCoreAddress = Address.parse("EQABFPp8oXtArlOkPbGlOLXsi9KUT7OWMJ1Eg0sLHY2R54RF");
+      const poolCore = new PoolCore(poolCoreAddress);
+      const contract = client.open(poolCore);
+
+      const parsedTokenAddress = Address.parse(tokenAddress);
+      const isInPool = await contract.getHasPool(parsedTokenAddress);
+      return isInPool;
+    } catch (error) {
+      console.error('Error checking token in pool:', error);
+      return false;
+    }
+  };
+
+  const syncTokenPoolStatus = async (token: TokenData) => {
+    try {
+      if (!token.tokenAddress) return false;
+      
+      const contractPoolStatus = await checkTokenInPool(token.tokenAddress, token.networkType);
+      
+      // If there's a mismatch between contract and database status
+      if (contractPoolStatus !== token.inPool) {
+        console.log('Syncing pool status for token:', token.name);
+        console.log('Contract status:', contractPoolStatus);
+        console.log('Database status:', token.inPool);
+        
+        try {
+          // Update database to match contract status
+          await api.updateToken({
+            id: token._id,
+            inPool: contractPoolStatus,
+            poolAddress: contractPoolStatus ? "EQABFPp8oXtArlOkPbGlOLXsi9KUT7OWMJ1Eg0sLHY2R54RF" : undefined
+          });
+          
+          // Update local state
+          token.inPool = contractPoolStatus;
+        } catch (error) {
+          console.error('Failed to update token in database:', error);
+        }
+      }
+      
+      return token.inPool;
+    } catch (error) {
+      console.error('Error syncing token pool status:', error);
+      return token.inPool || false;
+    }
+  };
+
+  const renderTokenActions = (token: TokenData) => {
+    if (!tonConnectUI.account?.address) return null;
+
+    // Convert both addresses to non-bounceable format for comparison
+    const userAddress = getNonBounceableAddress(tonConnectUI.account.address, token.networkType === 'testnet');
+    const creatorAddress = token.creatorAddress;
+
+    console.log('User Address:', userAddress);
+    console.log('Creator Address:', creatorAddress);
+    
+    // Only show actions if user is token creator
+    if (userAddress !== creatorAddress) {
+      return null;
+    }
+
+    if (token.inPool) {
+      return (
+        <Button
+          onClick={(e) => {
+            e.stopPropagation();
+            setSelectedToken(token);
+            setIsLiquidityModalOpen(true);
+          }}
+          disabled={loading}
+          className="bg-[#00FFA3] text-black hover:bg-[#00DD8C] px-4 py-2 rounded-lg"
+        >
+          Add Liquidity
+        </Button>
+      );
+    }
+
+    return (
+      <Button
+        onClick={(e) => {
+          e.stopPropagation();
+          handleAddToPool(token);
+        }}
+        disabled={loading}
+        className="bg-[#00FFA3] text-black hover:bg-[#00DD8C] px-4 py-2 rounded-lg"
+      >
+        {loading ? 'Adding to Pool...' : 'Add to Pool'}
+      </Button>
+    );
+  };
+
+  const renderTokenCard = (token: TokenData) => (
+    <Card 
+      key={token._id} 
+      className="p-4 hover:bg-gray-800 transition-colors"
+      onClick={() => handleTokenClick(token)}
+    >
+      <div className="flex items-center space-x-4 mb-4">
+        <img src={token.imageUrl} alt={token.name} className="w-12 h-12 rounded-full" />
+        <div className="flex-1">
+          <h3 className="text-lg font-semibold">{token.name}</h3>
+          <p className="text-sm text-gray-400">{token.symbol}</p>
+        </div>
+        <div className="text-right">
+          <p className="text-lg">${token.price?.toFixed(4) || '0.00'}</p>
+          <div className="flex items-center gap-2">
+            {token.inPool ? (
+              <span className="px-2 py-0.5 text-xs bg-green-500/20 text-green-400 rounded-full">
+                In Pool
+              </span>
+            ) : (
+              <span className="px-2 py-0.5 text-xs bg-gray-500/20 text-gray-400 rounded-full">
+                Not in Pool
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-2 text-sm text-gray-400">
+        <div className="flex justify-between items-center">
+          <span>Creator:</span>
+          <div className="flex items-center gap-2">
+            <span className="text-white">{shortenAddress(token.creatorAddress)}</span>
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                copyToClipboard(token.creatorAddress);
+              }}
+              className="hover:text-white"
+            >
+              <Copy className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+        
+        <div className="flex justify-between items-center">
+          <span>Token Address:</span>
+          <div className="flex items-center gap-2">
+            <span className="text-white">{shortenAddress(token.tokenAddress || '')}</span>
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                copyToClipboard(token.tokenAddress || '');
+              }}
+              className="hover:text-white"
+            >
+              <Copy className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {token.inPool && (
+          <div className="flex justify-between items-center">
+            <span>Liquidity:</span>
+            <span className="text-white">{token.liquidityProgress?.toFixed(1) || '0'}%</span>
+          </div>
+        )}
+      </div>
+
+      <div className="mt-4 flex justify-end">
+        {renderTokenActions(token)}
+      </div>
+    </Card>
+  );
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success('Copied to clipboard!');
+  };
+
+  const shortenAddress = (address: string) => {
+    if (!address) return '';
+    return `${address.slice(0, 6)}...${address.slice(-4)}`;
+  };
 
   useEffect(() => {
     fetchTokens();
@@ -134,17 +353,190 @@ export const TokenList: React.FC = () => {
       setIsLoading(true);
       const response = await api.getTokens();
       if (response.success && Array.isArray(response.tokens)) {
-        setTokens(response.tokens);
+        // Check and sync pool status for each token
+        const tokensWithPoolStatus = await Promise.all(
+          response.tokens.map(async (token) => {
+            const syncedPoolStatus = await syncTokenPoolStatus(token);
+            return { ...token, inPool: syncedPoolStatus };
+          })
+        );
+        setTokens(tokensWithPoolStatus);
       } else {
         setTokens([]);
         toast.error('No tokens found');
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error fetching tokens:', error);
       toast.error('Failed to fetch tokens');
-      setTokens([]);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleTokenClick = (token: any) => {
+    console.log('Navigating to token:', token);
+    const tokenId = token.id || token._id;
+    navigate(`/token/${tokenId}`);
+  };
+
+  const handleAddToPool = async (token: TokenData) => {
+    if (!tonConnectUI.connected) {
+      toast.error('Please connect your wallet first');
+      return;
+    }
+
+    // Double check pool status before proceeding
+    const isInPool = await checkTokenInPool(token.tokenAddress!, token.networkType);
+    if (isInPool) {
+      // Update database if needed and show add liquidity instead
+      if (!token.inPool) {
+        await api.updateToken({
+          id: token.id,
+          inPool: true,
+          poolAddress: "EQABFPp8oXtArlOkPbGlOLXsi9KUT7OWMJ1Eg0sLHY2R54RF"
+        });
+        await fetchTokens();
+      }
+      toast.error('Token is already in pool. Please add liquidity instead.');
+      return;
+    }
+
+    const connectedAddress = getNonBounceableAddress(tonConnectUI.account?.address || '', token.networkType === 'testnet');
+    
+    // Normalize addresses for comparison
+    const normalizedCreator = token.creatorAddress.replace(/^(EQ|UQ|kQ|0Q)/, '');
+    const normalizedConnected = connectedAddress.replace(/^(EQ|UQ|kQ|0Q)/, '');
+
+    if (normalizedCreator !== normalizedConnected) {
+      toast.error('Only token creator can add to pool');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const sender = new TonConnectSender(tonConnectUI.connector);
+      const endpoint = await getHttpEndpoint({
+        network: token.networkType === 'testnet' ? "testnet" : "mainnet",
+      });
+
+      const client = new TonClient({ endpoint });
+      const poolCoreAddress = Address.parse("EQABFPp8oXtArlOkPbGlOLXsi9KUT7OWMJ1Eg0sLHY2R54RF");
+      const poolCore = new PoolCore(poolCoreAddress);
+      const contract = client.open(poolCore);
+
+      let tokenAddress: Address;
+      try {
+        if (token.tokenAddress.match(/^(EQ|UQ|kQ|0Q)/)) {
+          const parsed = Address.parseFriendly(token.tokenAddress);
+          tokenAddress = parsed.address;
+        } else {
+          tokenAddress = Address.parse(token.tokenAddress);
+        }
+      } catch (error) {
+        console.error('Error parsing token address:', error);
+        toast.error('Invalid token address');
+        return;
+      }
+
+      try {
+        const result = await contract.send(
+          sender,
+          {
+            value: toNano('0.5'),
+            bounce: false,
+            mode: 1
+          },
+          {
+            $$type: 'AddJetton',
+            jettonAddress: tokenAddress
+          }
+        );
+
+        console.log('Add token result:', result);
+        toast.success('Token added to pool!');
+
+        // Update token in database
+        await api.updateToken({
+          id: token.id,
+          inPool: true,
+          poolAddress: poolCoreAddress.toString()
+        });
+
+        // Fetch fresh data
+        await fetchTokens();
+
+      } catch (error: any) {
+        console.error('Error details:', error);
+        toast.error(`Failed to add token: ${error.message}`);
+      }
+
+    } catch (error) {
+      console.error('Error adding token to pool:', error);
+      toast.error('Failed to add token to pool');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddLiquidity = async (amount: string) => {
+    if (!selectedToken || !tonConnectUI.connected) return;
+
+    setLoading(true);
+    try {
+      const sender = new TonConnectSender(tonConnectUI.connector);
+      const endpoint = await getHttpEndpoint({
+        network: selectedToken.networkType === 'testnet' ? "testnet" : "mainnet",
+      });
+
+      const client = new TonClient({ endpoint });
+      const poolCoreAddress = Address.parse("EQABFPp8oXtArlOkPbGlOLXsi9KUT7OWMJ1Eg0sLHY2R54RF");
+      
+      let tokenAddress: Address;
+
+      try {
+        if (selectedToken.tokenAddress?.match(/^(EQ|UQ|kQ|0Q)/)) {
+          const parsed = Address.parseFriendly(selectedToken.tokenAddress);
+          tokenAddress = parsed.address;
+        } else {
+          tokenAddress = Address.parse(selectedToken.tokenAddress || '');
+        }
+      } catch (error) {
+        console.error('Error parsing addresses:', error);
+        toast.error('Invalid addresses');
+        return;
+      }
+
+      const poolCore = new PoolCore(poolCoreAddress);
+      const contract = client.open(poolCore);
+
+      const liquidityAmount = toNano(amount);
+      const gasAmount = toNano('0.5');
+      const totalAmount = liquidityAmount + gasAmount;
+
+      const result = await contract.send(
+        sender,
+        {
+          value: totalAmount,
+          bounce: false,
+          mode: 1
+        },
+        {
+          $$type: 'PoolBuy',
+          jettonAddress: tokenAddress
+        }
+      );
+
+      console.log('Add liquidity result:', result);
+      toast.success('Liquidity added successfully!');
+      await fetchTokens();
+    } catch (error) {
+      console.error('Error adding liquidity:', error);
+      toast.error('Failed to add liquidity');
+    } finally {
+      setLoading(false);
+      setIsLiquidityModalOpen(false);
+      setSelectedToken(null);
     }
   };
 
@@ -154,89 +546,64 @@ export const TokenList: React.FC = () => {
     token.agentType.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleTokenClick = (token: any) => {
-    console.log('Navigating to token:', token);
-    const tokenId = token.id || token._id;
-    navigate(`/token/${tokenId}`);
-  };
-
   return (
-    <div>
+    <Container>
+      <Header>
+        <Button
+          variant="outline"
+          onClick={() => navigate('/dashboard')}
+          className="mb-4"
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back
+        </Button>
 
-      <Container>
-        <Header>
-          <Button
-            variant="outline"
-            onClick={() => navigate('/dashboard')}
-            className="mb-4"
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" /> Back
-          </Button>
+        <Title>Token List</Title>
+        <Subtitle>View all launched tokens</Subtitle>
 
-         
-        
-          <Title>Token List</Title>
-          <Subtitle>View all launched tokens</Subtitle>
+        <Button onClick={() => navigate('/launch')} className="bg-[#00FFA3] text-black hover:bg-[#00DD8C]">
+          Create New AI Agent
+        </Button>
 
-          <Button onClick={() => navigate('/launch')} className="bg-[#00FFA3] text-black hover:bg-[#00DD8C]">
-            Create New AI Agent
-          </Button>
+        <div className="w-full mt-4">
+          <input
+            type="text"
+            placeholder="Search tokens by name, description, or type..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full px-4 py-2 rounded-lg bg-[#1A1A1A] border border-gray-700 focus:outline-none focus:border-[#00FFA3] text-white"
+          />
+        </div>
+      </Header>
 
-          <div className="w-full mt-4">
-            <input
-              type="text"
-              placeholder="Search tokens by name, description, or type..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full px-4 py-2 rounded-lg bg-[#1A1A1A] border border-gray-700 focus:outline-none focus:border-[#00FFA3] text-white"
-            />
-          </div>
-        </Header>
-
-        {isLoading ? (
-          <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-[#00FFA3]"></div>
-          </div>
-        ) : (
-          <Grid>
-            {filteredTokens.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-white/80 mb-4">No tokens found</p>
-                <Button onClick={() => navigate('/launch')}>
-                  Launch Your First Token
-                </Button>
-              </div>
-            ) : (
-              filteredTokens.map((token) => (
-                <TokenCard 
-                  key={token.id || token._id} 
-                  onClick={() => handleTokenClick(token)}
-                  className="transition-transform duration-300 hover:scale-105"
-                >
-                  <TokenImage src={token.imageUrl || 'https://picsum.photos/200'} alt={token.name} />
-                  <TokenInfo>
-                    <TokenName>{token.name}</TokenName>
-                    <TokenType>{token.agentType}</TokenType>
-                    <TokenDescription>{token.description}</TokenDescription>
-                  </TokenInfo>
-                  <TokenMetrics>
-                    <MetricItem>
-                      <MetricLabel>Price</MetricLabel>
-                      <MetricValue>${token.price || '0.00'}</MetricValue>
-                    </MetricItem>
-                    <MetricItem>
-                      <MetricLabel>24h Change</MetricLabel>
-                      <MetricValue className={token.priceChange24h && token.priceChange24h > 0 ? 'text-green-500' : 'text-red-500'}>
-                        {token.priceChange24h ? `${token.priceChange24h.toFixed(2)}%` : '0.00%'}
-                      </MetricValue>
-                    </MetricItem>
-                  </TokenMetrics>
-                </TokenCard>
-              ))
-            )}
-          </Grid>
-        )}
-      </Container>
-    </div>
+      {isLoading ? (
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-[#00FFA3]"></div>
+        </div>
+      ) : (
+        <Grid>
+          {filteredTokens.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-white/80 mb-4">No tokens found</p>
+              <Button onClick={() => navigate('/launch')}>
+                Launch Your First Token
+              </Button>
+            </div>
+          ) : (
+            filteredTokens.map((token) => (
+              renderTokenCard(token)
+            ))
+          )}
+        </Grid>
+      )}
+      <LiquidityModal
+        isOpen={isLiquidityModalOpen}
+        onClose={() => {
+          setIsLiquidityModalOpen(false);
+          setSelectedToken(null);
+        }}
+        onConfirm={handleAddLiquidity}
+        tokenName={selectedToken?.name || ''}
+      />
+    </Container>
   );
 };
