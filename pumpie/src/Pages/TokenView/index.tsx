@@ -69,6 +69,7 @@ export const TokenView = () => {
   const [currentPrice, setCurrentPrice] = useState<number | null>(null);
   const [tokenSupply, setTokenSupply] = useState<string | null>(null);
   const [liquidityProgress, setLiquidityProgress] = useState<number>(0);
+  const [tonPrice, setTonPrice] = useState<number>(2.5); // Default TON price in USD
 
   // Target liquidity amount to move to DEX (10,000 TON)
   const TARGET_LIQUIDITY = toNano('10000');
@@ -77,13 +78,19 @@ export const TokenView = () => {
     'https://app.ston.fi/swap';             // Stonfi mainnet
 
   const calculatePrice = (supply: bigint, amount: bigint): number => {
-    const initialPrice = token?.price || 1;
-    const curveStepness = 0.1; // 10% increase per base amount
-    const baseAmount = toNano('1000'); // 1000 tokens as base amount
+    // Get initial price from token or default to 0
+    const initialPrice = token?.price || 0;
     
-    const currentSupply = supply;
-    const priceMultiplier = 1 + (Number(curveStepness) * (Number(currentSupply) / Number(baseAmount)));
-    return initialPrice * priceMultiplier;
+    // Convert supply to TON units
+    const supplyInTon = Number(fromNano(supply));
+    
+    // Simple linear price calculation based on liquidity
+    // Price = Initial Price + (Liquidity in TON * 0.1)
+    // This means each TON of liquidity adds 0.1 TON to the price
+    const priceIncrease = supplyInTon * 0.1;
+    const finalPrice = initialPrice + priceIncrease;
+    
+    return finalPrice;
   };
 
   const getTokenPrice = async () => {
@@ -99,26 +106,35 @@ export const TokenView = () => {
       const poolCore = new PoolCore(poolCoreAddress);
       const contract = client.open(poolCore);
 
-      // Get current liquidity
-      const liquidity = await contract.getGetJettonLiquidity(Address.parse(token.tokenAddress));
+      const tokenAddress = Address.parse(token.tokenAddress);
+      const liquidity = await contract.getGetJettonLiquidity(tokenAddress);
       
-      // Calculate price based on bonding curve
-      const calculatedPrice = calculatePrice(liquidity, BigInt(0));
-
+      // Calculate price based on current liquidity
+      const price = calculatePrice(liquidity, toNano('1'));
+      setCurrentPrice(price);
+      
+      // Update token supply
+      setTokenSupply(liquidity.toString());
+      
       // Calculate progress towards DEX migration
-      const progress = Math.min((Number(liquidity) / Number(TARGET_LIQUIDITY)) * 100, 100);
+      const liquidityInTon = Number(fromNano(liquidity));
+      const progress = (liquidityInTon / 10000) * 100; // 10,000 TON target
       setLiquidityProgress(progress);
 
-      // If target liquidity reached, show DEX migration button
-      if (Number(liquidity) >= Number(TARGET_LIQUIDITY)) {
-        toast.success('Target liquidity reached! Token can now be migrated to DEX');
-      }
-
-      setCurrentPrice(calculatedPrice);
-      setTokenSupply(liquidity.toString());
     } catch (error) {
       console.error('Error getting token price:', error);
     }
+  };
+
+  const formatNumber = (num: number, decimals: number = 2): string => {
+    if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(decimals)}M`;
+    if (num >= 1_000) return `${(num / 1_000).toFixed(decimals)}K`;
+    return num.toFixed(decimals);
+  };
+
+  const formatCurrency = (amount: number, currency: 'TON' | 'USD' = 'TON'): string => {
+    if (currency === 'USD') return `$${formatNumber(amount)}`;
+    return `${formatNumber(amount)} TON`;
   };
 
   useEffect(() => {
@@ -781,7 +797,12 @@ token.networkType === 'mainnet' && (
                     <div className="mt-4 space-y-2">
                       <div className="flex justify-between text-sm text-gray-400">
                         <span>Pool Liquidity</span>
-                        <span>{tokenSupply || '0.00'} {token?.symbol || ''}</span>
+                        <div className="text-right">
+                          <div>{formatCurrency(Number(fromNano(tokenSupply || '0')))}</div>
+                          <div className="text-xs text-gray-500">
+                            {formatCurrency(Number(fromNano(tokenSupply || '0')) * tonPrice, 'USD')}
+                          </div>
+                        </div>
                       </div>
                       <div className="flex justify-between text-sm text-gray-400">
                         <span>Price Impact</span>
@@ -792,30 +813,18 @@ token.networkType === 'mainnet' && (
                       <div className="mt-4">
                         <div className="flex justify-between text-sm text-gray-400 mb-1">
                           <span>Progress to DEX Migration</span>
-                          <span>{liquidityProgress.toFixed(1)}%</span>
+                          <div className="text-right">
+                            <div>{formatCurrency(liquidityProgress)}</div>
+                            <div className="text-xs text-gray-500">Target: {formatCurrency(10000)} ({formatCurrency(10000 * tonPrice, 'USD')})</div>
+                          </div>
                         </div>
                         <div className="w-full bg-gray-700 rounded-full h-2.5">
                           <div 
-                            className="bg-blue-600 h-2.5 rounded-full transition-all duration-500" 
-                            style={{ width: `${liquidityProgress}%` }}
-                          ></div>
-                        </div>
-                        <div className="text-xs text-gray-500 mt-1">
-                          Target: 10,000 TON
+                            className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
+                            style={{ width: `${Math.min(100, (liquidityProgress / 10000) * 100)}%` }}
+                          />
                         </div>
                       </div>
-
-                      {/* DEX Migration Button */}
-                      {liquidityProgress >= 100 && (
-                        <div className="mt-4">
-                          <Button
-                            onClick={() => window.open(DEX_URL, '_blank')}
-                            className="w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600"
-                          >
-                            Migrate to {token?.networkType === 'testnet' ? 'DeDust' : 'Stonfi'} 🚀
-                          </Button>
-                        </div>
-                      )}
                     </div>
 
                     <Button 

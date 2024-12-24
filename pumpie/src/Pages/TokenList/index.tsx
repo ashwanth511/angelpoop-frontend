@@ -6,7 +6,7 @@ import { toast } from 'react-hot-toast';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import { useTonConnectUI } from '@tonconnect/ui-react';
-import { Address, toNano } from '@ton/core';
+import { Address, toNano, fromNano } from '@ton/core';
 import { getHttpEndpoint } from "@orbs-network/ton-access";
 import { TonClient } from '@ton/ton';
 import { PoolCore } from '@/wrappers/tact_PoolCore';
@@ -128,7 +128,20 @@ interface Token extends TokenData {
   marketCap?: number;
   volume24h?: number;
   holders?: number;
+  liquidityProgress?: number;
 }
+
+const formatNumber = (num: number, decimals: number = 2): string => {
+  if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(decimals)}M`;
+  if (num >= 1_000) return `${(num / 1_000).toFixed(decimals)}K`;
+  return num.toFixed(decimals);
+};
+
+const formatCurrency = (amount: number, currency: 'TON' | 'USD' = 'TON'): string => {
+  const tonPrice = 2.5; // Default TON price in USD
+  if (currency === 'USD') return `$${formatNumber(amount * tonPrice)}`;
+  return `${formatNumber(amount)} TON`;
+};
 
 export const TokenList: React.FC = () => {
   const navigate = useNavigate();
@@ -202,6 +215,25 @@ export const TokenList: React.FC = () => {
           
           // Update local state
           token.inPool = contractPoolStatus;
+
+          // If token is in pool, get liquidity
+          if (contractPoolStatus) {
+            const endpoint = await getHttpEndpoint({
+              network: token.networkType === 'testnet' ? "testnet" : "mainnet"
+            });
+
+            const client = new TonClient({ endpoint });
+            const poolCoreAddress = Address.parse("EQABFPp8oXtArlOkPbGlOLXsi9KUT7OWMJ1Eg0sLHY2R54RF");
+            const poolCore = new PoolCore(poolCoreAddress);
+            const contract = client.open(poolCore);
+
+            const tokenAddress = Address.parse(token.tokenAddress);
+            const liquidity = await contract.getGetJettonLiquidity(tokenAddress);
+            
+            // Update liquidity progress
+            const liquidityAmount = Number(fromNano(liquidity));
+            token.liquidityProgress = liquidityAmount;
+          }
         } catch (error) {
           console.error('Failed to update token in database:', error);
         }
@@ -211,6 +243,29 @@ export const TokenList: React.FC = () => {
     } catch (error) {
       console.error('Error syncing token pool status:', error);
       return token.inPool || false;
+    }
+  };
+
+  const getTokenLiquidity = async (token: TokenData) => {
+    try {
+      if (!token.tokenAddress || !token.inPool) return 0;
+      
+      const endpoint = await getHttpEndpoint({
+        network: token.networkType === 'testnet' ? "testnet" : "mainnet"
+      });
+
+      const client = new TonClient({ endpoint });
+      const poolCoreAddress = Address.parse("EQABFPp8oXtArlOkPbGlOLXsi9KUT7OWMJ1Eg0sLHY2R54RF");
+      const poolCore = new PoolCore(poolCoreAddress);
+      const contract = client.open(poolCore);
+
+      const tokenAddress = Address.parse(token.tokenAddress);
+      const liquidity = await contract.getGetJettonLiquidity(tokenAddress);
+      
+      return Number(fromNano(liquidity));
+    } catch (error) {
+      console.error('Error getting token liquidity:', error);
+      return 0;
     }
   };
 
@@ -272,8 +327,11 @@ export const TokenList: React.FC = () => {
           <p className="text-sm text-gray-400">{token.symbol}</p>
         </div>
         <div className="text-right">
-          <p className="text-lg">${token.price?.toFixed(4) || '0.00'}</p>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col">
+            <span className="text-lg font-medium">{formatCurrency(token.liquidityProgress || 0)}</span>
+            <span className="text-sm text-gray-400">{formatCurrency(token.liquidityProgress || 0, 'USD')}</span>
+          </div>
+          <div className="flex items-center gap-2 mt-1">
             {token.inPool ? (
               <span className="px-2 py-0.5 text-xs bg-green-500/20 text-green-400 rounded-full">
                 In Pool
@@ -323,7 +381,7 @@ export const TokenList: React.FC = () => {
         {token.inPool && (
           <div className="flex justify-between items-center">
             <span>Liquidity:</span>
-            <span className="text-white">{token.liquidityProgress?.toFixed(1) || '0'}%</span>
+            <span className="text-white">{token.liquidityProgress?.toFixed(1) || '0'} TON</span>
           </div>
         )}
       </div>
@@ -342,141 +400,6 @@ export const TokenList: React.FC = () => {
   const shortenAddress = (address: string) => {
     if (!address) return '';
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
-  };
-
-  useEffect(() => {
-    fetchTokens();
-  }, []);
-
-  const fetchTokens = async () => {
-    try {
-      setIsLoading(true);
-      const response = await api.getTokens();
-      if (response.success && Array.isArray(response.tokens)) {
-        // Check and sync pool status for each token
-        const tokensWithPoolStatus = await Promise.all(
-          response.tokens.map(async (token) => {
-            const syncedPoolStatus = await syncTokenPoolStatus(token);
-            return { ...token, inPool: syncedPoolStatus };
-          })
-        );
-        setTokens(tokensWithPoolStatus);
-      } else {
-        setTokens([]);
-        toast.error('No tokens found');
-      }
-    } catch (error) {
-      console.error('Error fetching tokens:', error);
-      toast.error('Failed to fetch tokens');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleTokenClick = (token: any) => {
-    console.log('Navigating to token:', token);
-    const tokenId = token.id || token._id;
-    navigate(`/token/${tokenId}`);
-  };
-
-  const handleAddToPool = async (token: TokenData) => {
-    if (!tonConnectUI.connected) {
-      toast.error('Please connect your wallet first');
-      return;
-    }
-
-    // Double check pool status before proceeding
-    const isInPool = await checkTokenInPool(token.tokenAddress!, token.networkType);
-    if (isInPool) {
-      // Update database if needed and show add liquidity instead
-      if (!token.inPool) {
-        await api.updateToken({
-          id: token.id,
-          inPool: true,
-          poolAddress: "EQABFPp8oXtArlOkPbGlOLXsi9KUT7OWMJ1Eg0sLHY2R54RF"
-        });
-        await fetchTokens();
-      }
-      toast.error('Token is already in pool. Please add liquidity instead.');
-      return;
-    }
-
-    const connectedAddress = getNonBounceableAddress(tonConnectUI.account?.address || '', token.networkType === 'testnet');
-    
-    // Normalize addresses for comparison
-    const normalizedCreator = token.creatorAddress.replace(/^(EQ|UQ|kQ|0Q)/, '');
-    const normalizedConnected = connectedAddress.replace(/^(EQ|UQ|kQ|0Q)/, '');
-
-    if (normalizedCreator !== normalizedConnected) {
-      toast.error('Only token creator can add to pool');
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      const sender = new TonConnectSender(tonConnectUI.connector);
-      const endpoint = await getHttpEndpoint({
-        network: token.networkType === 'testnet' ? "testnet" : "mainnet",
-      });
-
-      const client = new TonClient({ endpoint });
-      const poolCoreAddress = Address.parse("EQABFPp8oXtArlOkPbGlOLXsi9KUT7OWMJ1Eg0sLHY2R54RF");
-      const poolCore = new PoolCore(poolCoreAddress);
-      const contract = client.open(poolCore);
-
-      let tokenAddress: Address;
-      try {
-        if (token.tokenAddress.match(/^(EQ|UQ|kQ|0Q)/)) {
-          const parsed = Address.parseFriendly(token.tokenAddress);
-          tokenAddress = parsed.address;
-        } else {
-          tokenAddress = Address.parse(token.tokenAddress);
-        }
-      } catch (error) {
-        console.error('Error parsing token address:', error);
-        toast.error('Invalid token address');
-        return;
-      }
-
-      try {
-        const result = await contract.send(
-          sender,
-          {
-            value: toNano('0.5'),
-            bounce: false,
-            mode: 1
-          },
-          {
-            $$type: 'AddJetton',
-            jettonAddress: tokenAddress
-          }
-        );
-
-        console.log('Add token result:', result);
-        toast.success('Token added to pool!');
-
-        // Update token in database
-        await api.updateToken({
-          id: token.id,
-          inPool: true,
-          poolAddress: poolCoreAddress.toString()
-        });
-
-        // Fetch fresh data
-        await fetchTokens();
-
-      } catch (error: any) {
-        console.error('Error details:', error);
-        toast.error(`Failed to add token: ${error.message}`);
-      }
-
-    } catch (error) {
-      console.error('Error adding token to pool:', error);
-      toast.error('Failed to add token to pool');
-    } finally {
-      setLoading(false);
-    }
   };
 
   const handleAddLiquidity = async (amount: string) => {
@@ -510,33 +433,176 @@ export const TokenList: React.FC = () => {
       const poolCore = new PoolCore(poolCoreAddress);
       const contract = client.open(poolCore);
 
-      const liquidityAmount = toNano(amount);
-      const gasAmount = toNano('0.5');
-      const totalAmount = liquidityAmount + gasAmount;
-
-      const result = await contract.send(
+      // Send transaction
+      await contract.send(
         sender,
         {
-          value: totalAmount,
-          bounce: false,
-          mode: 1
+          value: toNano(amount),
+          bounce: false
         },
         {
-          $$type: 'PoolBuy',
+          $$type: 'AddJetton',
           jettonAddress: tokenAddress
         }
       );
 
-      console.log('Add liquidity result:', result);
       toast.success('Liquidity added successfully!');
-      await fetchTokens();
+
+      // Update token liquidity after adding
+      const newLiquidity = await getTokenLiquidity(selectedToken);
+      
+      // Update the token in the list
+      setTokens(prevTokens => 
+        prevTokens.map(t => 
+          t._id === selectedToken._id 
+            ? { ...t, liquidityProgress: newLiquidity }
+            : t
+        )
+      );
+
     } catch (error) {
       console.error('Error adding liquidity:', error);
       toast.error('Failed to add liquidity');
     } finally {
       setLoading(false);
       setIsLiquidityModalOpen(false);
-      setSelectedToken(null);
+    }
+  };
+
+  useEffect(() => {
+    const loadTokens = async () => {
+      setIsLoading(true);
+      try {
+        const response = await api.getTokens();
+        if (!response.success || !response.tokens) {
+          toast.error('Failed to load tokens');
+          return;
+        }
+
+        const tokensWithStatus = await Promise.all(
+          response.tokens.map(async (token) => {
+            const inPool = await syncTokenPoolStatus(token);
+            const liquidity = inPool ? await getTokenLiquidity(token) : 0;
+            return { ...token, liquidityProgress: liquidity };
+          })
+        );
+        setTokens(tokensWithStatus);
+      } catch (error) {
+        console.error('Error loading tokens:', error);
+        toast.error('Failed to load tokens');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadTokens();
+
+    // Set up periodic updates for tokens in pool
+    const interval = setInterval(async () => {
+      setTokens(prevTokens => {
+        const updatedTokens = [...prevTokens];
+        prevTokens.forEach(async (token, index) => {
+          if (token.inPool) {
+            const liquidity = await getTokenLiquidity(token);
+            updatedTokens[index] = { ...token, liquidityProgress: liquidity };
+          }
+        });
+        return updatedTokens;
+      });
+    }, 30000); // Update every 30 seconds
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleTokenClick = (token: any) => {
+    console.log('Navigating to token:', token);
+    const tokenId = token.id || token._id;
+    navigate(`/token/${tokenId}`);
+  };
+
+  const handleAddToPool = async (token: TokenData) => {
+    if (!tonConnectUI.connected) {
+      toast.error('Please connect your wallet first');
+      return;
+    }
+
+    if (!token.tokenAddress) {
+      toast.error('Token address not found');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // First check if token is already in pool
+      const isInPool = await checkTokenInPool(token.tokenAddress, token.networkType);
+      if (isInPool) {
+        toast.error('Token is already in pool. Please add liquidity instead.');
+        return;
+      }
+
+      const sender = new TonConnectSender(tonConnectUI.connector);
+      const endpoint = await getHttpEndpoint({
+        network: token.networkType === 'testnet' ? "testnet" : "mainnet",
+      });
+
+      const client = new TonClient({ endpoint });
+      const poolCoreAddress = Address.parse("EQABFPp8oXtArlOkPbGlOLXsi9KUT7OWMJ1Eg0sLHY2R54RF");
+      const poolCore = new PoolCore(poolCoreAddress);
+      const contract = client.open(poolCore);
+
+      let tokenAddress: Address;
+      try {
+        if (token.tokenAddress.match(/^(EQ|UQ|kQ|0Q)/)) {
+          const parsed = Address.parseFriendly(token.tokenAddress);
+          tokenAddress = parsed.address;
+        } else {
+          tokenAddress = Address.parse(token.tokenAddress);
+        }
+      } catch (error) {
+        console.error('Error parsing addresses:', error);
+        toast.error('Invalid addresses');
+        return;
+      }
+
+      // Send transaction
+      await contract.send(
+        sender,
+        {
+          value: toNano('0.5'),
+          bounce: false
+        },
+        {
+          $$type: 'AddJetton',
+          jettonAddress: tokenAddress
+        }
+      );
+
+      toast.success('Token added to pool successfully!');
+
+      // Update token in database
+      await api.updateToken({
+        id: token._id!,
+        inPool: true,
+        poolAddress: "EQABFPp8oXtArlOkPbGlOLXsi9KUT7OWMJ1Eg0sLHY2R54RF"
+      });
+
+      // Reload tokens to get fresh data
+      const response = await api.getTokens();
+      if (response.success && response.tokens) {
+        const tokensWithStatus = await Promise.all(
+          response.tokens.map(async (token) => {
+            const inPool = await syncTokenPoolStatus(token);
+            const liquidity = inPool ? await getTokenLiquidity(token) : 0;
+            return { ...token, liquidityProgress: liquidity };
+          })
+        );
+        setTokens(tokensWithStatus);
+      }
+    } catch (error: any) {
+      console.error('Error details:', error);
+      toast.error('Failed to add token to pool');
+    } finally {
+      setLoading(false);
     }
   };
 
