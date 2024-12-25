@@ -42,6 +42,8 @@ class AgentService {
       Name: ${tokenData.name}
       Type: ${tokenData.agentType}
       Description: ${tokenData.description}
+      TokenAddress: ${tokenData.tokenAddress}
+
       
       Base Personality: ${agentType.personality}
       Context: ${agentType.context}
@@ -73,6 +75,7 @@ class AgentService {
       name: tokenData.name,
       agentType: tokenData.agentType,
       description: tokenData.description,
+      tokenAddress: tokenData.tokenAddress,
       personality: JSON.parse(personality),
       context: JSON.parse(context),
       supportedLanguages: agentType.languages,

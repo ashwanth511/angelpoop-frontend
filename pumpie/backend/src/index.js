@@ -16,7 +16,7 @@ app.use(express.json());
 // MongoDB Connection with retry logic
 const connectDB = async () => {
   try {
-    await mongoose.connect('mongodb://localhost:27017/pumpie', {
+    await mongoose.connect('mongodb+srv://pumpie:UqbtIE0w2SRDdPrU@cluster0.ql1hido.mongodb.net/', {
       useNewUrlParser: true,
       useUnifiedTopology: true,
     });

@@ -46,6 +46,7 @@ Create a personality profile for an AI agent representing a token with these det
 Token Name: ${tokenData.name}
 Type: ${tokenData.agentType}
 Description: ${tokenData.description}
+Address: ${tokenData.tokenAddress}
 
 Return a JSON object with these fields:
 {
@@ -68,10 +69,11 @@ Analyze this token and create key points for the AI agent:
 Token Name: ${tokenData.name}
 Type: ${tokenData.agentType}
 Description: ${tokenData.description}
-
+Address: ${tokenData.tokenAddress}
 Response must be a JSON array of exactly 5 strings covering:
 1. Token purpose and utility
 2. Target audience
+3.Token address token symbol providing and all
 3. Key features
 4. Market positioning
 5. Future potential

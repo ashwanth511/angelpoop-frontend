@@ -16,7 +16,6 @@ import { getHttpEndpoint } from "@orbs-network/ton-access";
 import { TonClient } from '@ton/ton';
 import { PoolCore } from '@/wrappers/tact_PoolCore';
 import TonConnectSender from '@/hooks/TonConnectSender';
-import { JettonMaster, JettonWallet } from '@ton/core';
 
 interface Token {
   id: string;
@@ -79,6 +78,9 @@ export const TokenView = () => {
   const DEX_URL = token?.networkType === 'testnet' ? 
     'https://app.dedust.io/swap/testnet' :  // DeDust testnet
     'https://app.ston.fi/swap';             // Stonfi mainnet
+
+  // Add this state for tracking pool status
+  const [isInPool, setIsInPool] = useState<boolean>(false);
 
   const calculatePrice = (supply: bigint, amount: bigint): number => {
     // Get initial price from token or default to 0
@@ -159,41 +161,124 @@ export const TokenView = () => {
     }
   };
 
-  const fetchTokenBalance = async (address: string) => {
-    if (!token?.tokenAddress) return;
+  const getTokenBalance = async (ownerAddress: string) => {
+    if (!token?.tokenAddress) {
+      console.log('No token address available');
+      return;
+    }
 
     try {
-      const endpoint = await getHttpEndpoint({
-        network: token.networkType === 'testnet' ? "testnet" : "mainnet",
+      console.log('Fetching token balance for:', {
+        ownerAddress,
+        tokenAddress: token.tokenAddress,
+        network: token.networkType
       });
 
-      const client = new TonClient({ endpoint });
-      const tokenAddress = Address.parse(token.tokenAddress);
-      const userAddress = Address.parse(address);
+      // Try both methods to get balance
+      try {
+        // Method 1: Using TonCenter API
+        const baseUrl = token?.networkType === 'testnet' 
+          ? 'https://testnet.toncenter.com/api/v2'
+          : 'https://toncenter.com/api/v2';
 
-      // Get jetton wallet address
-      const jettonMaster = client.open(JettonMaster.fromAddress(tokenAddress));
-      const jettonWalletAddress = await jettonMaster.getGetWalletAddress(userAddress);
-      
-      // Get balance from jetton wallet
-      const jettonWallet = client.open(JettonWallet.fromAddress(jettonWalletAddress));
-      const balance = await jettonWallet.getGetBalance();
-      
-      setTokenBalance(fromNano(balance));
+        const tokenDataResponse = await fetch(
+          `${baseUrl}/getTokenData?address=${token.tokenAddress}`
+        );
+        const tokenData = await tokenDataResponse.json();
+        console.log('Token data from API:', tokenData);
+
+        if (tokenData.ok) {
+          const decimals = tokenData.result.decimals || 9;
+          console.log('Token decimals:', decimals);
+        }
+
+        // Get wallet address for this token
+        const walletResponse = await fetch(
+          `${baseUrl}/getWalletAddress?account=${ownerAddress}&token=${token.tokenAddress}`
+        );
+        const walletData = await walletResponse.json();
+        console.log('Wallet data from API:', walletData);
+
+        if (walletData.ok) {
+          // Get balance
+          const balanceResponse = await fetch(
+            `${baseUrl}/getAccountState?account=${walletData.result}`
+          );
+          const balanceData = await balanceResponse.json();
+          console.log('Balance data from API:', balanceData);
+
+          if (balanceData.ok) {
+            const balance = balanceData.result.balance;
+            const formattedBalance = fromNano(balance);
+            console.log('API Balance:', formattedBalance);
+            setTokenBalance(formattedBalance);
+            return;
+          }
+        }
+      } catch (apiError) {
+        console.warn('Failed to get balance from API:', apiError);
+      }
+
+      // Method 2: Using Contract Methods
+      try {
+        const endpoint = await getHttpEndpoint({
+          network: token.networkType === 'testnet' ? "testnet" : "mainnet",
+        });
+        console.log('Using endpoint:', endpoint);
+
+        const client = new TonClient({ endpoint });
+        const masterAddress = Address.parse(token.tokenAddress);
+        console.log('Jetton master address:', masterAddress.toString());
+
+        // Get jetton wallet address
+        const jettonMaster = client.open(PoolCore.fromAddress(masterAddress));
+        const jettonWalletAddress = await jettonMaster.getGetJettonWalletAddress(Address.parse(ownerAddress));
+        console.log('Jetton wallet address:', jettonWalletAddress.toString());
+
+        // Get balance from wallet
+        const jettonWallet = client.open(PoolCore.fromAddress(jettonWalletAddress));
+        const walletData = await jettonWallet.getGetWalletData();
+        const formattedBalance = fromNano(walletData.balance);
+        console.log('Contract Balance:', {
+          raw: walletData.balance.toString(),
+          formatted: formattedBalance
+        });
+        
+        setTokenBalance(formattedBalance);
+        return;
+      } catch (contractError) {
+        console.warn('Failed to get balance from contract:', contractError);
+        // If wallet doesn't exist yet, balance is 0
+        if (contractError.message?.includes('not exist')) {
+          console.log('Wallet does not exist yet, setting balance to 0');
+          setTokenBalance('0');
+          return;
+        }
+        throw contractError;
+      }
     } catch (error) {
       console.error('Error fetching token balance:', error);
+      // Set balance to 0 on error
+      setTokenBalance('0');
+      
+      // Show error to user
+      toast.error('Failed to fetch token balance. Please try again.');
     }
   };
 
+  // Add this effect to fetch balances when wallet connects
   useEffect(() => {
-    if (tonConnectUI.account?.address) {
+    if (tonConnectUI.account?.address && token?.tokenAddress) {
+      // Get TON balance
       fetchTonBalance(tonConnectUI.account.address);
-      fetchTokenBalance(tonConnectUI.account.address);
+      
+      // Get token balance
+      getTokenBalance(tonConnectUI.account.address);
 
       // Refresh balances every 10 seconds
       const interval = setInterval(() => {
         fetchTonBalance(tonConnectUI.account.address);
-        fetchTokenBalance(tonConnectUI.account.address);
+        getTokenBalance(tonConnectUI.account.address);
       }, 10000);
 
       return () => clearInterval(interval);
@@ -415,7 +500,7 @@ export const TokenView = () => {
 
       const client = new TonClient({ endpoint });
 
-      const Pool_ADDRESS = "EQCZ5BCtbFd52Q4gZPuTf40HN9HR5HzAnnFNgQBdvFiQUAsk";
+      const Pool_ADDRESS = "EQABFPp8oXtArlOkPbGlOLXsi9KUT7OWMJ1Eg0sLHY2R54RF";
       const poolCoreAddress = Address.parse(Pool_ADDRESS);
 
       const sampleJetton = client.open(PoolCore.fromAddress(poolCoreAddress));
@@ -423,11 +508,11 @@ export const TokenView = () => {
       await sampleJetton.send(
         sender,
         {
-          value: toNano('0.05'),
+          value: toNano(fromAmount),
         },
         {
           $$type: 'PoolBuy',
-          jettonAddress: Address.parse(token?.tokenAddress || ''),
+          jettonAddress: Address.parse(token?.tokenAddress || '')
         }
       );
 
@@ -457,7 +542,7 @@ export const TokenView = () => {
 
       const client = new TonClient({ endpoint });
 
-      const Pool_ADDRESS = "EQCZ5BCtbFd52Q4gZPuTf40HN9HR5HzAnnFNgQBdvFiQUAsk";
+      const Pool_ADDRESS = "EQABFPp8oXtArlOkPbGlOLXsi9KUT7OWMJ1Eg0sLHY2R54RF";
       const poolCoreAddress = Address.parse(Pool_ADDRESS);
 
       const sampleJetton = client.open(PoolCore.fromAddress(poolCoreAddress));
@@ -467,7 +552,7 @@ export const TokenView = () => {
       await sampleJetton.send(
         sender,
         {
-          value: toNano('0.05'),
+          value: toNano('0.5'),
         },
         {
           $$type: 'PoolSell',
@@ -577,6 +662,55 @@ export const TokenView = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // Add this function to check if token is in pool
+  const checkTokenInPool = async () => {
+    if (!token?.tokenAddress) return;
+
+    try {
+      const endpoint = await getHttpEndpoint({
+        network: token.networkType === 'testnet' ? "testnet" : "mainnet",
+      });
+
+      const client = new TonClient({ endpoint });
+      const poolCoreAddress = Address.parse("EQABFPp8oXtArlOkPbGlOLXsi9KUT7OWMJ1Eg0sLHY2R54RF");
+      const poolCore = new PoolCore(poolCoreAddress);
+      const contract = client.open(poolCore);
+
+      const tokenAddress = Address.parse(token.tokenAddress);
+      const hasPool = await contract.getHasPool(tokenAddress);
+      
+      setIsInPool(hasPool);
+      
+      // Update token.inPool as well to keep it in sync
+      if (token.inPool !== hasPool) {
+        token.inPool = hasPool;
+      }
+      
+      console.log('Token in pool status:', {
+        tokenAddress: token.tokenAddress,
+        hasPool,
+        networkType: token.networkType
+      });
+    } catch (error) {
+      console.error('Error checking pool status:', error);
+      setIsInPool(false);
+    }
+  };
+
+  // Add this effect to check pool status periodically
+  useEffect(() => {
+    if (token?.tokenAddress) {
+      checkTokenInPool();
+      
+      // Check pool status every 30 seconds
+      const interval = setInterval(() => {
+        checkTokenInPool();
+      }, 30000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [token?.tokenAddress]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black">
@@ -609,22 +743,23 @@ export const TokenView = () => {
                 <span className="px-2 py-0.5 text-xs bg-black text-gray-300 rounded-full">
                   {token.creatorAddress}
                 </span>
-
-                {
-token.networkType === 'testnet' && (
+                <span className={`px-2 py-0.5 text-xs rounded-full ${
+                  isInPool 
+                    ? 'bg-green-800 text-green-200' 
+                    : 'bg-red-800 text-red-200'
+                }`}>
+                  {isInPool ? 'In Pool' : 'Not in Pool'}
+                </span>
+                {token.networkType === 'testnet' && (
                   <span className="px-2 py-0.5 text-xs bg-red-800 text-white rounded-full">
                     Testnet
                   </span>
-                ) 
-                }
-                {
-token.networkType === 'mainnet' && (
+                )}
+                {token.networkType === 'mainnet' && (
                   <span className="px-2 py-0.5 text-xs bg-green-800 text-white rounded-full">
                     Mainnet
                   </span>
-                ) 
-                }
-
+                )}
               </div>
             </div>
           </div>
@@ -808,6 +943,7 @@ token.networkType === 'mainnet' && (
                         </span>
                       </div>
                       <div className="flex items-center">
+                    
                         <input
                           type="number"
                           placeholder="0.0"

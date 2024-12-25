@@ -186,6 +186,13 @@ export const TokenList: React.FC = () => {
 
       const parsedTokenAddress = Address.parse(tokenAddress);
       const isInPool = await contract.getHasPool(parsedTokenAddress);
+      
+      console.log('TokenList - Check pool status:', {
+        tokenAddress,
+        networkType,
+        isInPool
+      });
+      
       return isInPool;
     } catch (error) {
       console.error('Error checking token in pool:', error);
@@ -197,46 +204,20 @@ export const TokenList: React.FC = () => {
     try {
       if (!token.tokenAddress) return false;
       
+      // Check actual status from contract
       const contractPoolStatus = await checkTokenInPool(token.tokenAddress, token.networkType);
       
       // If there's a mismatch between contract and database status
       if (contractPoolStatus !== token.inPool) {
-        console.log('Syncing pool status for token:', token.name);
-        console.log('Contract status:', contractPoolStatus);
-        console.log('Database status:', token.inPool);
+        // Update database to match contract status
+        await api.updateToken({
+          id: token._id,
+          inPool: contractPoolStatus,
+          poolAddress: contractPoolStatus ? "EQABFPp8oXtArlOkPbGlOLXsi9KUT7OWMJ1Eg0sLHY2R54RF" : undefined
+        });
         
-        try {
-          // Update database to match contract status
-          await api.updateToken({
-            id: token._id,
-            inPool: contractPoolStatus,
-            poolAddress: contractPoolStatus ? "EQABFPp8oXtArlOkPbGlOLXsi9KUT7OWMJ1Eg0sLHY2R54RF" : undefined
-          });
-          
-          // Update local state
-          token.inPool = contractPoolStatus;
-
-          // If token is in pool, get liquidity
-          if (contractPoolStatus) {
-            const endpoint = await getHttpEndpoint({
-              network: token.networkType === 'testnet' ? "testnet" : "mainnet"
-            });
-
-            const client = new TonClient({ endpoint });
-            const poolCoreAddress = Address.parse("EQABFPp8oXtArlOkPbGlOLXsi9KUT7OWMJ1Eg0sLHY2R54RF");
-            const poolCore = new PoolCore(poolCoreAddress);
-            const contract = client.open(poolCore);
-
-            const tokenAddress = Address.parse(token.tokenAddress);
-            const liquidity = await contract.getGetJettonLiquidity(tokenAddress);
-            
-            // Update liquidity progress
-            const liquidityAmount = Number(fromNano(liquidity));
-            token.liquidityProgress = liquidityAmount;
-          }
-        } catch (error) {
-          console.error('Failed to update token in database:', error);
-        }
+        // Update local state
+        token.inPool = contractPoolStatus;
       }
       
       return token.inPool;
@@ -497,19 +478,8 @@ export const TokenList: React.FC = () => {
 
     loadTokens();
 
-    // Set up periodic updates for tokens in pool
-    const interval = setInterval(async () => {
-      setTokens(prevTokens => {
-        const updatedTokens = [...prevTokens];
-        prevTokens.forEach(async (token, index) => {
-          if (token.inPool) {
-            const liquidity = await getTokenLiquidity(token);
-            updatedTokens[index] = { ...token, liquidityProgress: liquidity };
-          }
-        });
-        return updatedTokens;
-      });
-    }, 30000); // Update every 30 seconds
+    // Check pool status more frequently (every 15 seconds)
+    const interval = setInterval(loadTokens, 15000);
 
     return () => clearInterval(interval);
   }, []);
