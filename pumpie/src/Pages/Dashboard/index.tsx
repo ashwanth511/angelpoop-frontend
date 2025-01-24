@@ -1,11 +1,39 @@
-import React, { useEffect, useState } from 'react';
+import  { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { NavBar } from '@/components/Blocks/Navbar';
-import { api } from '../../services/api';
-import { TokenData } from '../../types';
+import { api } from '@/services/api';
+import { TokenData } from '@/types/types';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowRight } from 'lucide-react';
+
+// Define the API response type
+interface APITokenData {
+  _id?: string;
+  name?: string;
+  symbol?: string;
+  description?: string;
+  agentType?: string;
+  creatorAddress?: string;
+  imageUrl?: string;
+  networkType?: 'testnet' | 'mainnet';
+  totalSupply?: string;
+  decimals?: number;
+  price?: number;
+  priceChange24h?: number;
+  marketCap?: number;
+  volume24h?: number;
+  totalValueLocked?: number;
+  holders?: number;
+  tokenAddress?: string;
+  inPool?: boolean;
+  projectDescription?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  __v?: number;
+  poolAddress?: string;
+  liquidityProgress?: number;
+}
 
 export const Dashboard = () => {
   const navigate = useNavigate();
@@ -15,10 +43,40 @@ export const Dashboard = () => {
 
   useEffect(() => {
     const fetchTokens = async () => {
+      setLoading(true);
       try {
         const response = await api.getTokens();
-        if (response.success) {
-          setTokens(response.tokens);
+        console.log('Dashboard - Fetched tokens:', response);
+        if (response.success && response.tokens) {
+          // Process tokens to ensure all required fields
+          const processedTokens = (response.tokens as APITokenData[]).map(token => ({
+            _id: token._id || '',
+            name: token.name || '',
+            symbol: token.symbol || '',
+            description: token.description || '',
+            agentType: token.agentType || '',
+            creatorAddress: token.creatorAddress || '',
+            imageUrl: token.imageUrl || '',
+            networkType: token.networkType || '',
+            totalSupply: token.totalSupply || '0',
+            decimals: token.decimals || 18,
+            price: token.price || 0,
+            priceChange24h: token.priceChange24h || 0,
+            marketCap: token.marketCap || 0,
+            volume24h: token.volume24h || 0,
+            totalValueLocked: token.totalValueLocked || 0,
+            holders: token.holders || 0,
+            tokenAddress: token.tokenAddress || '',
+            inPool: !!token.inPool,
+            projectDescription: token.projectDescription || '',
+            createdAt: token.createdAt || new Date().toISOString(),
+            updatedAt: token.updatedAt || new Date().toISOString(),
+            __v: token.__v || 0,
+            poolAddress: token.poolAddress || '',
+            liquidityProgress: token.liquidityProgress || 0
+          })) as TokenData[];
+          console.log('Dashboard - Processed tokens:', processedTokens);
+          setTokens(processedTokens);
         }
       } catch (error) {
         console.error('Error fetching tokens:', error);
@@ -28,23 +86,19 @@ export const Dashboard = () => {
     };
 
     fetchTokens();
+    // Fetch tokens every 30 seconds
+    const interval = setInterval(fetchTokens, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   // Filter tokens based on their status
   const recentlyLaunched = tokens.filter(token => 
-    // Show all tokens launched in last 7 days
-    Date.now() - new Date(token.createdAt).getTime() < 7 * 24 * 60 * 60 * 1000 // 7 days
+    token.createdAt ? new Date(token.createdAt).getTime() > Date.now() - 7 * 24 * 60 * 60 * 1000 : false
   );
 
-  const listedTokens = tokens.filter(token => 
-    // Show all tokens that are ready for DEX
-    token.liquidityProgress >= 100
-  );
+  const listedTokens = tokens; // Show all tokens in the Listed Tokens tab
 
-  const inPoolTokens = tokens.filter(token => 
-    // Show all tokens that are in pool but not yet DEX ready
-    token.inPool === true && token.liquidityProgress < 100
-  );
+  const inPoolTokens = tokens.filter(token => token.inPool === true);
 
   const renderTokenCard = (token: TokenData) => (
     <Card 
@@ -53,7 +107,15 @@ export const Dashboard = () => {
       onClick={() => navigate(`/token/${token._id}`)}
     >
       <div className="flex items-center space-x-4">
-        <img src={token.imageUrl} alt={token.name} className="w-12 h-12 rounded-full" />
+        <img 
+          src={token.imageUrl || '/default-token.png'} 
+          alt={token.name} 
+          className="w-12 h-12 rounded-full"
+          onError={(e) => {
+            const target = e.target as HTMLImageElement;
+            target.src = '/default-token.png';
+          }}
+        />
         <div className="flex-1">
           <h3 className="text-lg font-semibold">{token.name}</h3>
           <div className="flex items-center gap-2">
@@ -64,11 +126,12 @@ export const Dashboard = () => {
               </span>
             )}
           </div>
+          <p className="text-sm text-gray-400 mt-1">{token.agentType}</p>
         </div>
         <div className="text-right">
-          <p className="text-lg">${token.price?.toFixed(4) || '0.00'}</p>
+          <p className="text-lg">{token.price !== undefined && token.price > 0 ? `$${token.price.toFixed(4)}` : 'N/A'}</p>
           <p className="text-sm text-gray-400">
-            {token.inPool ? `Liquidity: ${token.liquidityProgress?.toFixed(1) || '0'}%` : 'Not in Pool'}
+            {token.inPool ? `In Pool` : 'Not in Pool'}
           </p>
         </div>
       </div>
@@ -76,7 +139,7 @@ export const Dashboard = () => {
   );
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen  text-white">
       <NavBar />
       <div className="container mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-8">

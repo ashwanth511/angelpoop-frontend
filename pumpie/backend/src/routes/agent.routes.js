@@ -129,4 +129,85 @@ router.post('/agent/:tokenId/chat', async (req, res) => {
   }
 });
 
+// Connect Twitter account
+router.post('/agent/:tokenId/twitter/connect', async (req, res) => {
+  try {
+    const { tokenId } = req.params;
+    const { accessToken, refreshToken, username } = req.body;
+
+    // Find the agent
+    const agent = await Agent.findOne({ tokenId });
+    if (!agent) {
+      return res.status(404).json({
+        success: false,
+        error: 'Agent not found'
+      });
+    }
+
+    // Update agent with Twitter credentials
+    agent.twitter = {
+      accessToken,
+      refreshToken,
+      username,
+      authorized: true,
+      lastTweetAt: new Date()
+    };
+
+    // Enable posting schedule by default
+    agent.postingSchedule = {
+      enabled: true,
+      frequency: 'daily',
+      lastPostTime: new Date()
+    };
+
+    await agent.save();
+
+    res.json({
+      success: true,
+      message: 'Twitter account connected successfully'
+    });
+  } catch (error) {
+    console.error('Error connecting Twitter:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to connect Twitter account'
+    });
+  }
+});
+
+// Update posting schedule
+router.post('/agent/:tokenId/twitter/schedule', async (req, res) => {
+  try {
+    const { tokenId } = req.params;
+    const { enabled, frequency } = req.body;
+
+    const agent = await Agent.findOne({ tokenId });
+    if (!agent) {
+      return res.status(404).json({
+        success: false,
+        error: 'Agent not found'
+      });
+    }
+
+    agent.postingSchedule = {
+      enabled,
+      frequency,
+      lastPostTime: agent.postingSchedule?.lastPostTime || new Date()
+    };
+
+    await agent.save();
+
+    res.json({
+      success: true,
+      message: 'Posting schedule updated successfully'
+    });
+  } catch (error) {
+    console.error('Error updating schedule:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to update posting schedule'
+    });
+  }
+});
+
 module.exports = router;

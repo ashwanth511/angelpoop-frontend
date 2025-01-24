@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTonConnectUI } from '@tonconnect/ui-react';
 import { Address } from '@ton/core';
 import { useNetwork } from '../../context/NetworkContext';
@@ -23,14 +23,14 @@ interface AddressFormats {
   };
 }
 
-interface Transaction {
-  hash: string;
-  time: number;
-  from: string;
-  to: string;
-  amount: string;
-  fee: string;
-}
+// interface Transaction {
+//   hash: string;
+//   time: number;
+//   from: string;
+//   to: string;
+//   amount: string;
+//   fee: string;
+// }
 
 const getApiBaseUrl = (isTestnet: boolean) => {
   return isTestnet 
@@ -127,7 +127,7 @@ export const Settings = () => {
       toast({
         title: "Error",
         description: "Failed to generate address formats",
-        variant: "destructive"
+       
       });
     }
   };
@@ -151,7 +151,7 @@ export const Settings = () => {
         ...prev,
         balance: (Number(balanceData.result) / 1e9).toFixed(4),
         user_friendly_address: address,
-        wallet_type: tonConnectUI.account?.wallet?.name || 'unknown'
+    
       }));
       
       setTransactions(txData.result?.length || 0);
@@ -163,7 +163,7 @@ export const Settings = () => {
       toast({
         title: "Error",
         description: "Failed to fetch wallet data. Please try again later.",
-        variant: "destructive"
+
       });
     }
   };
@@ -202,12 +202,12 @@ export const Settings = () => {
       toast({
         title: "Error",
         description: "Failed to copy address",
-        variant: "destructive"
+  
       });
     }
   };
 
-  const shortAddress = formatAddress(walletInfo.user_friendly_address);
+  // const shortAddress = formatAddress(walletInfo.user_friendly_address);
   const networkType = network === 'testnet' ? 'TON Testnet' : 'TON Mainnet';
 
   return (

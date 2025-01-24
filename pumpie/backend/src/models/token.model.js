@@ -76,6 +76,18 @@ const tokenSchema = new mongoose.Schema({
   },
   projectDescription: {
     type: String
+  },
+  website: {
+    type: String,
+    required: false
+  },
+  telegram: {
+    type: String,
+    required: false
+  },
+  twitter: {
+    type: String,
+    required: false
   }
 }, {
   timestamps: true

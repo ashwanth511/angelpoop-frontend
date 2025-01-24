@@ -21,6 +21,28 @@ const agentSchema = new mongoose.Schema({
   lastActive: {
     type: Date,
     default: Date.now
+  },
+  twitter: {
+    accessToken: String,
+    refreshToken: String,
+    username: String,
+    authorized: {
+      type: Boolean,
+      default: false
+    },
+    lastTweetAt: Date
+  },
+  postingSchedule: {
+    enabled: {
+      type: Boolean,
+      default: false
+    },
+    frequency: {
+      type: String,
+      enum: ['hourly', 'daily', 'weekly'],
+      default: 'daily'
+    },
+    lastPostTime: Date
   }
 }, {
   timestamps: true

@@ -47,6 +47,10 @@ Token Name: ${tokenData.name}
 Type: ${tokenData.agentType}
 Description: ${tokenData.description}
 Address: ${tokenData.tokenAddress}
+Website: ${tokenData.website}
+Telegram: ${tokenData.telegram}
+Twitter: ${tokenData.twitter}
+
 
 Return a JSON object with these fields:
 {
@@ -70,6 +74,9 @@ Token Name: ${tokenData.name}
 Type: ${tokenData.agentType}
 Description: ${tokenData.description}
 Address: ${tokenData.tokenAddress}
+Website: ${tokenData.website}
+Telegram: ${tokenData.telegram}
+Twitter: ${tokenData.twitter}
 Response must be a JSON array of exactly 5 strings covering:
 1. Token purpose and utility
 2. Target audience

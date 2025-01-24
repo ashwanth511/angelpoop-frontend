@@ -73,8 +73,8 @@ export const getWalletInfo = async (address: string): Promise<WalletInfo> => {
         const parsedAddress = Address.parse(address);
         
         // Get account state using TonClient
-        const accountState = await tonClient.getAccount(parsedAddress);
-        const balance = fromNano(accountState.balance.toString());
+        const accountState = await tonClient.getBalance(parsedAddress);
+        const balance = fromNano(accountState.toString());
         
         // Convert to user-friendly testnet non-bounceable address
         const userFriendlyAddress = convertToTestnetAddress(address);

@@ -23,12 +23,12 @@ export default function Hero() {
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div className="space-y-8">
               <h1 className="text-6xl font-bold leading-tight">
-                <span className="text-primary text-7xl">Pumpie</span>{" "}
-                <span className="courier-font">Meme Coin Launchpad</span>
+                <span className="text-primary text-7xl">AngelPoop</span>{" "}
+                <span className="courier-font">Ai tOKEN Launchpad</span>
               </h1>
               
               <p className="text-xl text-gray-600 dark:text-gray-400">
-                Launch your next viral meme coin with confidence. Simple, secure, and community-driven 
+                Launch your next viral coin with confidence. Simple, secure, and community-driven 
                 platform for creating and managing meme tokens on the blockchain.
               </p>
               

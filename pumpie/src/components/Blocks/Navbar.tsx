@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTonConnectUI } from '@tonconnect/ui-react';
 import { useNetwork } from '../../context/NetworkContext';
-
+import logo from "@/assets/logo.png"
 export const NavBar = () => {
   const [tonConnectUI] = useTonConnectUI();
   const navigate = useNavigate();
@@ -89,7 +89,7 @@ export const NavBar = () => {
               to={isConnected ? "/dashboard" : "/"} 
               className="text-white font-bold text-xl"
             >
-              Pumpie
+             <img src={logo} className="w-40"/>
             </Link>
           </div>
           

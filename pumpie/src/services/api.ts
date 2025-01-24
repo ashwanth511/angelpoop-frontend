@@ -3,6 +3,15 @@ import axios from 'axios';
 const API_BASE_URL = 'http://localhost:3001/api';
 
 interface TokenData {
+  liquidityProgress: number;
+  volume24h: number;
+  __v: number;
+  updatedAt: string;
+  createdAt: string;
+  holders: number;
+  totalValueLocked: number;
+  marketCap: number;
+  decimals: number;
   _id?: string;
   name: string;
   symbol: string;
@@ -18,6 +27,10 @@ interface TokenData {
   tokenAddress?: string;
   inPool?: boolean;
   poolAddress?: string;
+  website?: string;
+  telegram?: string;
+  twitter?: string;
+  initialLiquidity?: string;
 }
 
 interface AgentData {
@@ -25,6 +38,11 @@ interface AgentData {
   name: string;
   agentType: string;
   description: string;
+  website?: string;
+  telegram?: string;
+  twitter?: string;
+  initialLiquidity: string;
+  tokenAddress: string;
   personality: {
     handleUserQueries: boolean;
     customInstructions: string;
@@ -44,6 +62,17 @@ interface ApiResponse<T> {
 
 // API service object
 export const api = {
+  // Generic HTTP methods
+  async post(url: string, data?: any) {
+    const response = await axios.post(`${API_BASE_URL}${url}`, data);
+    return response.data;
+  },
+
+  async get(url: string) {
+    const response = await axios.get(`${API_BASE_URL}${url}`);
+    return response.data;
+  },
+
   // Token APIs
   createToken: async (tokenData: TokenData) => {
     try {

@@ -10,6 +10,9 @@ import { create } from 'zustand';
 const genAI = new GoogleGenerativeAI(GOOGLE_AI_API_KEY);
 const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
+// Map to store active agents
+const activeAgents = new Map<string, AIAgent>();
+
 export interface AIAgentConfig {
   telegramBotToken?: string;
   twitterConfig?: {
@@ -21,12 +24,17 @@ export interface AIAgentConfig {
   projectDescription: string;
   tokenName: string;
   tokenSymbol: string;
+  description?: string;
   aiConfig: {
     handleAnnouncements: boolean;
     handleUserQueries: boolean;
     customInstructions: string;
+    name: string;
+    type: string;
+    description: string;
   };
   platformType: 'telegram' | 'twitter' | 'both';
+  tokenId?: string;
 }
 
 export interface TokenInfo {
@@ -38,15 +46,37 @@ export interface TokenInfo {
   description?: string;
   projectDescription?: string;
   agentType: 'entertainment' | 'utility' | 'social' | 'defi';
+  networkType?: string;
 }
 
 interface AgentData {
   tokenId: string;
-  agentType: 'entertainment' | 'utility' | 'social' | 'defi';
-  personality: any;
-  context: string[];
-  lastActive: Date;
+  name: string;
+  agentType: string;
+  description: string;
+  website?: string;
+  telegram?: string;
+  twitter?: string;
+  initialLiquidity?: string; // Now optional
+  tokenAddress?: string;
+  personality: {
+    handleUserQueries: boolean;
+    customInstructions: string;
+  };
+  context?: string[];
+  lastActive?: Date;
 }
+
+
+interface AgentTemplate {
+  default_responses: {
+    error: string;
+    busy: string;
+    greeting: string; // Add greeting property
+  };
+  // ... other template properties
+}
+
 
 // Agent store for global state
 interface AgentState {
@@ -61,24 +91,31 @@ export const useAgentStore = create<AgentState>((set, get) => ({
   addAgent: (tokenId: string, agent: AIAgent) => set(state => ({ agents: { ...state.agents, [tokenId]: agent } })),
   getAgent: (tokenId: string) => get().agents[tokenId],
 
-  createAgent: async (agentData) => {
+  createAgent: async (agentData: AIAgentConfig) => {
     try {
-      const response = await api.createAgent(agentData);
+      // Convert AIAgentConfig to AgentData
+      const agentDataForApi: AgentData = {
+        tokenId: agentData.tokenId || '',
+        name: agentData.tokenName,
+        agentType: agentData.aiConfig.type,
+        description: agentData.projectDescription,
+        personality: {
+          handleUserQueries: agentData.aiConfig.handleUserQueries,
+          customInstructions: agentData.aiConfig.customInstructions
+        }
+      };
+
+      const response = await api.createAgent(agentDataForApi);
       if (response.success) {
         return { success: true, message: 'Agent created successfully' };
       }
       return { success: false, message: 'Failed to create agent' };
     } catch (error) {
       console.error('Error creating agent:', error);
-      return { success: false, message: 'Failed to create agent' };
+      return { success: false, message: 'Error creating agent' };
     }
   }
-
-
-
-}
-
-));
+}));
 
 export class AIAgent {
   private tokenId: string;
@@ -124,7 +161,9 @@ export class AIAgent {
         // Store agent data
         await this.storeAgentData({
           tokenId: this.tokenId,
+          name: tokenData.name,
           agentType: tokenData.agentType,
+          description: tokenData.description || '',
           personality: this.personality,
           context: this.context,
           lastActive: new Date()
@@ -159,7 +198,9 @@ export class AIAgent {
     try {
       const response = await axios.post(`${BASE_URL}/api/create-agent`, {
         tokenId: agentData.tokenId,
+        name: agentData.name,
         agentType: agentData.agentType,
+        description: agentData.description,
         personality: this.personality,
         context: this.context
       });
@@ -281,8 +322,8 @@ User message: ${message}`;
   }
 
   private getTypeSpecificSignature(): string {
-    const template = agentTemplates[this.tokenInfo?.agentType || 'utility'];
-    return template.default_responses.greeting;
+    const template = agentTemplates[this.tokenInfo?.agentType || 'utility'] as AgentTemplate;
+    return template?.default_responses?.greeting || 'Hello! How can I assist you today?';
   }
 
   async handleForumMessage(message: string): Promise<string> {
@@ -323,7 +364,9 @@ User message: ${message}`;
       try {
         await this.storeAgentData({
           tokenId: this.tokenId,
+          name: this.tokenInfo?.name || '',
           agentType: this.tokenInfo?.agentType || 'utility',
+          description: this.tokenInfo?.description || '',
           personality: this.personality,
           context: this.context,
           lastActive: new Date()
@@ -377,7 +420,9 @@ User message: ${message}`;
       // Save updated context to database
       await this.storeAgentData({
         tokenId: this.tokenId,
+        name: this.tokenInfo?.name || '',
         agentType: this.tokenInfo?.agentType || 'utility',
+        description: this.tokenInfo?.description || '',
         personality: this.personality,
         context: this.context,
         lastActive: new Date()
@@ -445,10 +490,15 @@ User message: ${message}`;
 export const createAIAgent = async (config: AIAgentConfig) => {
   try {
     // Create agent with initial data
-    const agentData = {
-      tokenId: config.tokenName.toLowerCase().replace(/\s+/g, '-'),
-      agentType: config.aiConfig.handleUserQueries ? 'interactive' : 'announcement',
-      personality: agentTemplates[config.aiConfig.handleUserQueries ? 'entertainment' : 'utility'],
+    const agentData: AgentData = {
+      tokenId: config.tokenId || config.tokenName.toLowerCase().replace(/\s+/g, '-'),
+      name: config.tokenName,
+      agentType: config.aiConfig.type,
+      description: config.projectDescription,
+      personality: {
+        handleUserQueries: config.aiConfig.handleUserQueries,
+        customInstructions: config.aiConfig.customInstructions
+      },
       context: [
         `I am an AI agent for ${config.tokenName} (${config.tokenSymbol})`,
         `Project Description: ${config.projectDescription}`,

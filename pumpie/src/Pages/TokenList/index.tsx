@@ -12,14 +12,46 @@ import { TonClient } from '@ton/ton';
 import { PoolCore } from '@/wrappers/tact_PoolCore';
 import TonConnectSender from '@/hooks/TonConnectSender';
 import { api } from '../../services/api';
-import type { TokenData } from '../../services/api';
+import type { TokenData } from '@/types/types';
 import { LiquidityModal } from './LiquidityModal';
 import { Copy } from 'lucide-react';
+
+interface APITokenData {
+  _id?: string;
+  name?: string;
+  symbol?: string;
+  description?: string;
+  agentType?: string;
+  creatorAddress?: string;
+  imageUrl?: string;
+  networkType?: string;
+  totalSupply?: string;
+  decimals?: number;
+  price?: number;
+  priceChange24h?: number;
+  marketCap?: number;
+  volume24h?: number;
+  totalValueLocked?: number;
+  holders?: number;
+  tokenAddress?: string;
+  inPool?: boolean;
+  projectDescription?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  __v?: number;
+  poolAddress?: string;
+  liquidityProgress?: number;
+  website?: string;
+  telegram?: string;
+  twitter?: string;
+  initialLiquidity?: string;
+}
 
 const Container = styled.div`
   padding: 2rem;
   max-width: 1200px;
   margin: 0 auto;
+  background:#ffffff;
 `;
 
 const Header = styled.div`
@@ -59,99 +91,21 @@ const Card = styled.div`
   }
 `;
 
-const TokenImage = styled.img`
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  margin-bottom: 1rem;
-  object-fit: cover;
-`;
 
-const TokenInfo = styled.div`
-  display: flex;
-  flex-direction: column;
-`;
 
-const TokenName = styled.h3`
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: white;
-  margin-bottom: 0.5rem;
-`;
 
-const TokenSymbol = styled.span`
-  font-size: 0.875rem;
-  color: rgba(255, 255, 255, 0.6);
-`;
 
-const TokenType = styled.span`
-  font-size: 0.875rem;
-  color: rgba(255, 255, 255, 0.6);
-`;
-
-const TokenDescription = styled.p`
-  font-size: 0.875rem;
-  color: rgba(255, 255, 255, 0.6);
-  margin-bottom: 1rem;
-`;
-
-const TokenMetrics = styled.div`
-  margin: 1rem 0;
-  padding: 0.75rem;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 8px;
-`;
-
-const MetricItem = styled.div`
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 0.5rem;
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 0.875rem;
-
-  &:last-child {
-    margin-bottom: 0;
-  }
-`;
-
-const MetricLabel = styled.span`
-  font-weight: 500;
-`;
-
-const MetricValue = styled.span`
-  font-weight: 600;
-`;
-
-interface Token extends TokenData {
-  price?: number;
-  priceChange24h?: number;
-  marketCap?: number;
-  volume24h?: number;
-  holders?: number;
-  liquidityProgress?: number;
-}
-
-const formatNumber = (num: number, decimals: number = 2): string => {
-  if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(decimals)}M`;
-  if (num >= 1_000) return `${(num / 1_000).toFixed(decimals)}K`;
-  return num.toFixed(decimals);
-};
-
-const formatCurrency = (amount: number, currency: 'TON' | 'USD' = 'TON'): string => {
-  const tonPrice = 2.5; // Default TON price in USD
-  if (currency === 'USD') return `$${formatNumber(amount * tonPrice)}`;
-  return `${formatNumber(amount)} TON`;
-};
 
 export const TokenList: React.FC = () => {
   const navigate = useNavigate();
-  const [tokens, setTokens] = useState<Token[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [tokens, setTokens] = useState<TokenData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [tonConnectUI] = useTonConnectUI();
-  const [loading, setLoading] = useState(false);
+  const [] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [selectedToken, setSelectedToken] = useState<TokenData | null>(null);
   const [isLiquidityModalOpen, setIsLiquidityModalOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [tonConnectUI] = useTonConnectUI();
 
   const getNonBounceableAddress = (address: string, isTestnet: boolean): string => {
     try {
@@ -181,7 +135,7 @@ export const TokenList: React.FC = () => {
 
       const client = new TonClient({ endpoint });
       const poolCoreAddress = Address.parse("EQABFPp8oXtArlOkPbGlOLXsi9KUT7OWMJ1Eg0sLHY2R54RF");
-      const poolCore = new PoolCore(poolCoreAddress);
+      const poolCore = PoolCore.fromAddress(poolCoreAddress);
       const contract = client.open(poolCore);
 
       const parsedTokenAddress = Address.parse(tokenAddress);
@@ -237,7 +191,7 @@ export const TokenList: React.FC = () => {
 
       const client = new TonClient({ endpoint });
       const poolCoreAddress = Address.parse("EQABFPp8oXtArlOkPbGlOLXsi9KUT7OWMJ1Eg0sLHY2R54RF");
-      const poolCore = new PoolCore(poolCoreAddress);
+      const poolCore = PoolCore.fromAddress(poolCoreAddress);
       const contract = client.open(poolCore);
 
       const tokenAddress = Address.parse(token.tokenAddress);
@@ -298,85 +252,96 @@ export const TokenList: React.FC = () => {
   const renderTokenCard = (token: TokenData) => (
     <Card 
       key={token._id} 
-      className="p-4 hover:bg-gray-800 transition-colors"
-      onClick={() => handleTokenClick(token)}
+      className="p-4 cursor-pointer hover:bg-gray-800 transition-colors"
+      onClick={() => navigate(`/token/${token._id}`)}
     >
-      <div className="flex items-center space-x-4 mb-4">
+      <div className="flex items-center space-x-4 mb-3">
         <img src={token.imageUrl} alt={token.name} className="w-12 h-12 rounded-full" />
         <div className="flex-1">
           <h3 className="text-lg font-semibold">{token.name}</h3>
-          <p className="text-sm text-gray-400">{token.symbol}</p>
-        </div>
-        <div className="text-right">
-          <div className="flex flex-col">
-            <span className="text-lg font-medium">{formatCurrency(token.liquidityProgress || 0)}</span>
-            <span className="text-sm text-gray-400">{formatCurrency(token.liquidityProgress || 0, 'USD')}</span>
-          </div>
-          <div className="flex items-center gap-2 mt-1">
-            {token.inPool ? (
+          <div className="flex items-center gap-2">
+            <p className="text-sm text-gray-400">{token.symbol}</p>
+            {token.inPool && (
               <span className="px-2 py-0.5 text-xs bg-green-500/20 text-green-400 rounded-full">
                 In Pool
               </span>
-            ) : (
-              <span className="px-2 py-0.5 text-xs bg-gray-500/20 text-gray-400 rounded-full">
-                Not in Pool
-              </span>
+            )}
+          </div>
+        </div>
+        <div className="text-right">
+          <p className="text-lg">${token.price?.toFixed(4) || '0.00'}</p>
+          <p className="text-sm text-gray-400">
+            {token.inPool ? `Liquidity: ${token.liquidityProgress?.toFixed(1) || '0'}%` : 'Not in Pool'}
+          </p>
+        </div>
+      </div>
+
+      {/* Bonding Curve Progress */}
+      <div className="mt-4 space-y-2">
+        <div className="flex justify-between text-sm">
+          <span className="text-gray-400">Bonding Curve Progress</span>
+          <span className="text-white font-medium">{token.liquidityProgress?.toFixed(1) || '0'}%</span>
+        </div>
+        <div className="w-full h-3 bg-gray-700 rounded-full overflow-hidden">
+          <div 
+            className="h-full bg-gradient-to-r from-[#00FFA3] to-[#00DD8C] transition-all duration-500 ease-out"
+            style={{ 
+              width: `${Math.min(100, token.liquidityProgress || 0)}%`,
+              boxShadow: token.liquidityProgress > 0 ? '0 0 20px rgba(0, 255, 163, 0.3)' : 'none'
+            }}
+          />
+        </div>
+        <div className="flex justify-between text-xs text-gray-500">
+          <span>0 TON</span>
+          <span>10,000 TON</span>
+        </div>
+      </div>
+
+      {/* Token Details */}
+      <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
+        <div>
+          <span className="text-gray-400">Creator:</span>
+          <div className="flex items-center gap-2 mt-1">
+            <span className="text-white truncate">{shortenAddress(token.creatorAddress)}</span>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                navigator.clipboard.writeText(token.creatorAddress);
+                toast.success('Address copied!');
+              }}
+              className="text-gray-400 hover:text-white"
+            >
+              <Copy className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+        <div>
+          <span className="text-gray-400">Token Address:</span>
+          <div className="flex items-center gap-2 mt-1">
+            <span className="text-white truncate">{shortenAddress(token.tokenAddress || '')}</span>
+            {token.tokenAddress && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigator.clipboard.writeText(token.tokenAddress || '');
+                  toast.success('Address copied!');
+                }}
+                className="text-gray-400 hover:text-white"
+              >
+                <Copy className="w-4 h-4" />
+              </button>
             )}
           </div>
         </div>
       </div>
 
-      <div className="space-y-2 text-sm text-gray-400">
-        <div className="flex justify-between items-center">
-          <span>Creator:</span>
-          <div className="flex items-center gap-2">
-            <span className="text-white">{shortenAddress(token.creatorAddress)}</span>
-            <button 
-              onClick={(e) => {
-                e.stopPropagation();
-                copyToClipboard(token.creatorAddress);
-              }}
-              className="hover:text-white"
-            >
-              <Copy className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-        
-        <div className="flex justify-between items-center">
-          <span>Token Address:</span>
-          <div className="flex items-center gap-2">
-            <span className="text-white">{shortenAddress(token.tokenAddress || '')}</span>
-            <button 
-              onClick={(e) => {
-                e.stopPropagation();
-                copyToClipboard(token.tokenAddress || '');
-              }}
-              className="hover:text-white"
-            >
-              <Copy className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-
-        {token.inPool && (
-          <div className="flex justify-between items-center">
-            <span>Liquidity:</span>
-            <span className="text-white">{token.liquidityProgress?.toFixed(1) || '0'} TON</span>
-          </div>
-        )}
-      </div>
-
+      {/* Action Buttons */}
       <div className="mt-4 flex justify-end">
         {renderTokenActions(token)}
       </div>
     </Card>
   );
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast.success('Copied to clipboard!');
-  };
 
   const shortenAddress = (address: string) => {
     if (!address) return '';
@@ -411,7 +376,7 @@ export const TokenList: React.FC = () => {
         return;
       }
 
-      const poolCore = new PoolCore(poolCoreAddress);
+      const poolCore = PoolCore.fromAddress(poolCoreAddress);
       const contract = client.open(poolCore);
 
       // Send transaction
@@ -451,44 +416,155 @@ export const TokenList: React.FC = () => {
   };
 
   useEffect(() => {
-    const loadTokens = async () => {
-      setIsLoading(true);
+    let isMounted = true;
+    let lastUpdateTime = 0;
+    const UPDATE_INTERVAL = 30000; // 30 seconds
+
+    const loadTokens = async (forceRefresh = false) => {
+      const now = Date.now();
+      if (!forceRefresh && now - lastUpdateTime < UPDATE_INTERVAL) {
+        return; // Skip if not enough time has passed
+      }
+
       try {
         const response = await api.getTokens();
-        if (!response.success || !response.tokens) {
-          toast.error('Failed to load tokens');
+        if (!isMounted) return;
+
+        if (!response?.success || !response?.tokens) {
+          console.error('Invalid API response:', response);
           return;
         }
 
-        const tokensWithStatus = await Promise.all(
-          response.tokens.map(async (token) => {
+        // First update with basic token data
+        if (!tokens.length) {
+          setTokens(response.tokens.map((token: APITokenData) => ({
+            _id: token._id || '',
+            name: token.name || '',
+            symbol: token.symbol || '',
+            description: token.description || '',
+            agentType: token.agentType || '',
+            creatorAddress: token.creatorAddress || '',
+            imageUrl: token.imageUrl || '',
+            networkType: token.networkType || '',
+            totalSupply: token.totalSupply || '0',
+            decimals: token.decimals || 18,
+            price: token.price || 0,
+            priceChange24h: token.priceChange24h || 0,
+            marketCap: token.marketCap || 0,
+            volume24h: token.volume24h || 0,
+            totalValueLocked: token.totalValueLocked || 0,
+            holders: token.holders || 0,
+            tokenAddress: token.tokenAddress || '',
+            inPool: !!token.inPool,
+            projectDescription: token.projectDescription || '',
+            createdAt: token.createdAt || new Date().toISOString(),
+            updatedAt: token.updatedAt || new Date().toISOString(),
+            __v: token.__v || 0,
+            poolAddress: token.poolAddress || '',
+            liquidityProgress: token.liquidityProgress || 0
+          })));
+        }
+
+        // Then update pool status and liquidity in background
+        const updatedTokens = await Promise.all(
+          response.tokens.map(async (rawToken: APITokenData) => {
+            // First create a properly typed TokenData object
+            const token: TokenData = {
+              _id: rawToken._id || '',
+              name: rawToken.name || '',
+              symbol: rawToken.symbol || '',
+              description: rawToken.description || '',
+              agentType: rawToken.agentType || '',
+              creatorAddress: rawToken.creatorAddress || '',
+              imageUrl: rawToken.imageUrl || '',
+              networkType: rawToken.networkType || '',
+              totalSupply: rawToken.totalSupply || '0',
+              decimals: rawToken.decimals || 18,
+              price: rawToken.price || 0,
+              priceChange24h: rawToken.priceChange24h || 0,
+              marketCap: rawToken.marketCap || 0,
+              volume24h: rawToken.volume24h || 0,
+              totalValueLocked: rawToken.totalValueLocked || 0,
+              holders: rawToken.holders || 0,
+              tokenAddress: rawToken.tokenAddress || '',
+              inPool: !!rawToken.inPool,
+              projectDescription: rawToken.projectDescription || '',
+              createdAt: rawToken.createdAt || new Date().toISOString(),
+              updatedAt: rawToken.updatedAt || new Date().toISOString(),
+              __v: rawToken.__v || 0,
+              poolAddress: rawToken.poolAddress || '',
+              liquidityProgress: rawToken.liquidityProgress || 0
+            };
+            
             const inPool = await syncTokenPoolStatus(token);
             const liquidity = inPool ? await getTokenLiquidity(token) : 0;
-            return { ...token, liquidityProgress: liquidity };
+            return {
+              ...token,
+              liquidityProgress: liquidity
+            };
           })
         );
-        setTokens(tokensWithStatus);
+
+        if (isMounted) {
+          setTokens(updatedTokens);
+          lastUpdateTime = now;
+        }
       } catch (error) {
         console.error('Error loading tokens:', error);
-        toast.error('Failed to load tokens');
       } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
 
-    loadTokens();
+    // Initial load
+    loadTokens(true);
 
-    // Check pool status more frequently (every 15 seconds)
-    const interval = setInterval(loadTokens, 15000);
+    // Set up interval for background updates
+    const intervalId = setInterval(() => {
+      loadTokens(false);
+    }, UPDATE_INTERVAL);
 
-    return () => clearInterval(interval);
+    return () => {
+      isMounted = false;
+      clearInterval(intervalId);
+    };
   }, []);
 
-  const handleTokenClick = (token: any) => {
-    console.log('Navigating to token:', token);
-    const tokenId = token.id || token._id;
-    navigate(`/token/${tokenId}`);
-  };
+  // Loading skeleton
+  if (isLoading && !tokens.length) {
+    return (
+      <div className="min-h-screen bg-blue-500">
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex justify-between items-center mb-8">
+            <h1 className="text-3xl font-bold text-white">Tokens</h1>
+            <div className="flex items-center space-x-4">
+              <div className="w-32 h-10 bg-gray-800 rounded-lg animate-pulse" />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="bg-gray-800/50 rounded-lg p-6 space-y-4">
+                <div className="flex items-center space-x-4">
+                  <div className="w-12 h-12 bg-gray-700 rounded-full animate-pulse" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-5 bg-gray-700 rounded w-1/4 animate-pulse" />
+                    <div className="h-4 bg-gray-700 rounded w-1/3 animate-pulse" />
+                  </div>
+                </div>
+                <div className="h-3 bg-gray-700 rounded animate-pulse" />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="h-4 bg-gray-700 rounded animate-pulse" />
+                  <div className="h-4 bg-gray-700 rounded animate-pulse" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const handleAddToPool = async (token: TokenData) => {
     if (!tonConnectUI.connected) {
@@ -517,10 +593,11 @@ export const TokenList: React.FC = () => {
 
       const client = new TonClient({ endpoint });
       const poolCoreAddress = Address.parse("EQABFPp8oXtArlOkPbGlOLXsi9KUT7OWMJ1Eg0sLHY2R54RF");
-      const poolCore = new PoolCore(poolCoreAddress);
+      const poolCore = PoolCore.fromAddress(poolCoreAddress);
       const contract = client.open(poolCore);
 
       let tokenAddress: Address;
+
       try {
         if (token.tokenAddress.match(/^(EQ|UQ|kQ|0Q)/)) {
           const parsed = Address.parseFriendly(token.tokenAddress);
@@ -560,12 +637,44 @@ export const TokenList: React.FC = () => {
       const response = await api.getTokens();
       if (response.success && response.tokens) {
         const tokensWithStatus = await Promise.all(
-          response.tokens.map(async (token) => {
+          response.tokens.map(async (rawToken: APITokenData) => {
+            // First create a properly typed TokenData object
+            const token: TokenData = {
+              _id: rawToken._id || '',
+              name: rawToken.name || '',
+              symbol: rawToken.symbol || '',
+              description: rawToken.description || '',
+              agentType: rawToken.agentType || '',
+              creatorAddress: rawToken.creatorAddress || '',
+              imageUrl: rawToken.imageUrl || '',
+              networkType: rawToken.networkType || '',
+              totalSupply: rawToken.totalSupply || '0',
+              decimals: rawToken.decimals || 18,
+              price: rawToken.price || 0,
+              priceChange24h: rawToken.priceChange24h || 0,
+              marketCap: rawToken.marketCap || 0,
+              volume24h: rawToken.volume24h || 0,
+              totalValueLocked: rawToken.totalValueLocked || 0,
+              holders: rawToken.holders || 0,
+              tokenAddress: rawToken.tokenAddress || '',
+              inPool: rawToken.inPool || false,
+              projectDescription: rawToken.projectDescription || '',
+              createdAt: rawToken.createdAt || new Date().toISOString(),
+              updatedAt: rawToken.updatedAt || new Date().toISOString(),
+              __v: rawToken.__v || 0,
+              poolAddress: rawToken.poolAddress || '',
+              liquidityProgress: 0
+            };
+            
             const inPool = await syncTokenPoolStatus(token);
             const liquidity = inPool ? await getTokenLiquidity(token) : 0;
-            return { ...token, liquidityProgress: liquidity };
+            return {
+              ...token,
+              liquidityProgress: liquidity
+            };
           })
         );
+
         setTokens(tokensWithStatus);
       }
     } catch (error: any) {
@@ -576,6 +685,7 @@ export const TokenList: React.FC = () => {
     }
   };
 
+
   const filteredTokens = tokens.filter(token => 
     token.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     token.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -583,6 +693,8 @@ export const TokenList: React.FC = () => {
   );
 
   return (
+
+    
     <Container>
       <Header>
         <Button

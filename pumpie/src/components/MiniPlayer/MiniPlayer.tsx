@@ -148,7 +148,12 @@ const VideoWrapper = styled.div<{ effectType: AnimeEffect }>`
   `}
 `;
 
-const Controls = React.memo(({ onClose, onExpand }) => {
+interface ControlsProps {
+  onClose: (e: React.MouseEvent) => void;
+  onExpand: (e: React.MouseEvent) => void;
+}
+
+const Controls = React.memo<ControlsProps>(({ onClose, onExpand }) => {
   return (
     <div>
       <Button onClick={onExpand} title="Expand">

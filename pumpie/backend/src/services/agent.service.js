@@ -43,6 +43,9 @@ class AgentService {
       Type: ${tokenData.agentType}
       Description: ${tokenData.description}
       TokenAddress: ${tokenData.tokenAddress}
+      Website: ${tokenData.website}
+      Telegram: ${tokenData.telegram}
+      Twitter: ${tokenData.twitter} 
 
       
       Base Personality: ${agentType.personality}

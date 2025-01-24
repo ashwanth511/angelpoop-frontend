@@ -75,7 +75,19 @@ export class TokenAgent {
         this.messageHistory = this.messageHistory.slice(-20);
       }
 
-      return response.content;
+      // Handle both string and complex message content
+      if (typeof response.content === 'string') {
+        return response.content;
+      } else if (Array.isArray(response.content)) {
+        // Join all text content from the array, handling different content types
+        return response.content.map(item => {
+          if (typeof item === 'string') return item;
+          if ('type' in item && item.type === 'text') return item.text;
+          return '';
+        }).filter(Boolean).join(' ');
+      }
+      
+      return "I apologize, but I'm having trouble processing your request right now. Please try again in a moment.";
     } catch (error) {
       console.error('Error in agent chat:', error);
       return "I apologize, but I'm having trouble processing your request right now. Please try again in a moment.";
