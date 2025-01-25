@@ -1,5 +1,5 @@
 import React from 'react';
-import './features.css';
+import './Features.css';
 
 export const SpaceParticles = () => {
   return (
