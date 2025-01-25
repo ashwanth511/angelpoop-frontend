@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button"
 import { SpaceParticles } from "./SpaceParticles"
 import { FloatingElements } from "@/components/Blocks/Floating-elements"
 import { FallingComets } from "./FallingComets"
-import './features.css'
+import './Features.css'
 import HeroImg from '../../assets/hero-1.webp'
 import { Link } from "react-router-dom"
 import { ArrowRight } from 'lucide-react'
