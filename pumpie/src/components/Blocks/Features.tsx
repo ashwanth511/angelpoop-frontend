@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button"
 import { FloatingElements } from "@/components/Blocks/Floating-elements"
-import './features.css'
+import './Features.css'
 
 export default function Features() {
   return (

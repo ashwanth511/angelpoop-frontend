@@ -3,9 +3,13 @@
   "version": "1.0.0",
   "description": "Backend for Angelpoop Token Management",
   "main": "src/index.js",
+  "engines": {
+    "node": "18.x"
+  },
   "scripts": {
     "start": "node src/index.js",
-    "dev": "nodemon src/index.js"
+    "dev": "nodemon src/index.js",
+    "build": "echo 'No build step required'"
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",
