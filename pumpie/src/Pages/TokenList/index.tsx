@@ -252,17 +252,17 @@ export const TokenList: React.FC = () => {
   const renderTokenCard = (token: TokenData) => (
     <Card 
       key={token._id} 
-      className="p-4 cursor-pointer hover:bg-gray-800 transition-colors"
+      className="!bg-gradient-to-r max-w-full max-h-full !from-blue-500 !to-blue-200 p-4 cursor-pointer hover:from-blue-600 hover:to-blue-300 transition-all duration-300 shadow-lg border border-black"
       onClick={() => navigate(`/token/${token._id}`)}
     >
-      <div className="flex items-center space-x-4 mb-3">
+      <div className="flex items-center justify-between space-x-4 mb-3">
         <img src={token.imageUrl} alt={token.name} className="w-12 h-12 rounded-full" />
         <div className="flex-1">
-          <h3 className="text-lg font-semibold">{token.name}</h3>
+          <h3 className="text-lg font-semibold text-black">{token.name}</h3>
           <div className="flex items-center gap-2">
-            <p className="text-sm text-gray-400">{token.symbol}</p>
+            <p className="text-sm text-black">{token.symbol}</p>
             {token.inPool && (
-              <span className="px-2 py-0.5 text-xs bg-green-500/20 text-green-400 rounded-full">
+              <span className="px-2 py-0.5 text-xs bg-green-500/20 text-green-800 rounded-full">
                 In Pool
               </span>
             )}
@@ -270,7 +270,7 @@ export const TokenList: React.FC = () => {
         </div>
         <div className="text-right">
           <p className="text-lg">${token.price?.toFixed(4) || '0.00'}</p>
-          <p className="text-sm text-gray-400">
+          <p className="text-sm text-black">
             {token.inPool ? `Liquidity: ${token.liquidityProgress?.toFixed(1) || '0'}%` : 'Not in Pool'}
           </p>
         </div>
@@ -279,8 +279,8 @@ export const TokenList: React.FC = () => {
       {/* Bonding Curve Progress */}
       <div className="mt-4 space-y-2">
         <div className="flex justify-between text-sm">
-          <span className="text-gray-400">Bonding Curve Progress</span>
-          <span className="text-white font-medium">{token.liquidityProgress?.toFixed(1) || '0'}%</span>
+          <span className="text-black">Bonding Curve Progress</span>
+          <span className="text-black font-medium">{token.liquidityProgress?.toFixed(1) || '0'}%</span>
         </div>
         <div className="w-full h-3 bg-gray-700 rounded-full overflow-hidden">
           <div 
@@ -291,7 +291,7 @@ export const TokenList: React.FC = () => {
             }}
           />
         </div>
-        <div className="flex justify-between text-xs text-gray-500">
+        <div className="flex justify-between text-xs text-black">
           <span>0 TON</span>
           <span>10,000 TON</span>
         </div>
@@ -300,25 +300,25 @@ export const TokenList: React.FC = () => {
       {/* Token Details */}
       <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
         <div>
-          <span className="text-gray-400">Creator:</span>
+          <span className="text-black">Creator:</span>
           <div className="flex items-center gap-2 mt-1">
-            <span className="text-white truncate">{shortenAddress(token.creatorAddress)}</span>
+            <span className="text-black truncate">{shortenAddress(token.creatorAddress)}</span>
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 navigator.clipboard.writeText(token.creatorAddress);
                 toast.success('Address copied!');
               }}
-              className="text-gray-400 hover:text-white"
+              className="text-black hover:text-white"
             >
               <Copy className="w-4 h-4" />
             </button>
           </div>
         </div>
         <div>
-          <span className="text-gray-400">Token Address:</span>
+          <span className="text-black">Token Address:</span>
           <div className="flex items-center gap-2 mt-1">
-            <span className="text-white truncate">{shortenAddress(token.tokenAddress || '')}</span>
+            <span className="text-black truncate">{shortenAddress(token.tokenAddress || '')}</span>
             {token.tokenAddress && (
               <button
                 onClick={(e) => {
@@ -326,7 +326,7 @@ export const TokenList: React.FC = () => {
                   navigator.clipboard.writeText(token.tokenAddress || '');
                   toast.success('Address copied!');
                 }}
-                className="text-gray-400 hover:text-white"
+                className="text-black hover:text-white"
               >
                 <Copy className="w-4 h-4" />
               </button>
@@ -445,7 +445,7 @@ export const TokenList: React.FC = () => {
             agentType: token.agentType || '',
             creatorAddress: token.creatorAddress || '',
             imageUrl: token.imageUrl || '',
-            networkType: token.networkType || '',
+            networkType: (token.networkType || 'testnet') as "testnet" | "mainnet",
             totalSupply: token.totalSupply || '0',
             decimals: token.decimals || 18,
             price: token.price || 0,
@@ -477,7 +477,7 @@ export const TokenList: React.FC = () => {
               agentType: rawToken.agentType || '',
               creatorAddress: rawToken.creatorAddress || '',
               imageUrl: rawToken.imageUrl || '',
-              networkType: rawToken.networkType || '',
+              networkType: (rawToken.networkType || 'testnet') as "testnet" | "mainnet",
               totalSupply: rawToken.totalSupply || '0',
               decimals: rawToken.decimals || 18,
               price: rawToken.price || 0,
@@ -487,7 +487,7 @@ export const TokenList: React.FC = () => {
               totalValueLocked: rawToken.totalValueLocked || 0,
               holders: rawToken.holders || 0,
               tokenAddress: rawToken.tokenAddress || '',
-              inPool: !!rawToken.inPool,
+              inPool: rawToken.inPool || false,
               projectDescription: rawToken.projectDescription || '',
               createdAt: rawToken.createdAt || new Date().toISOString(),
               updatedAt: rawToken.updatedAt || new Date().toISOString(),
@@ -535,10 +535,10 @@ export const TokenList: React.FC = () => {
   // Loading skeleton
   if (isLoading && !tokens.length) {
     return (
-      <div className="min-h-screen bg-blue-500">
+      <div className="min-h-screen bg-white">
         <div className="container mx-auto px-4 py-8">
           <div className="flex justify-between items-center mb-8">
-            <h1 className="text-3xl font-bold text-white">Tokens</h1>
+            <h1 className="text-3xl font-bold text-black">Tokens</h1>
             <div className="flex items-center space-x-4">
               <div className="w-32 h-10 bg-gray-800 rounded-lg animate-pulse" />
             </div>
@@ -647,7 +647,7 @@ export const TokenList: React.FC = () => {
               agentType: rawToken.agentType || '',
               creatorAddress: rawToken.creatorAddress || '',
               imageUrl: rawToken.imageUrl || '',
-              networkType: rawToken.networkType || '',
+              networkType: (rawToken.networkType || 'testnet') as "testnet" | "mainnet",
               totalSupply: rawToken.totalSupply || '0',
               decimals: rawToken.decimals || 18,
               price: rawToken.price || 0,
@@ -695,20 +695,21 @@ export const TokenList: React.FC = () => {
   return (
 
     
-    <Container>
+    <div className="min-h-screen bg-white">
+      <div className="container mx-auto px-4 py-8">
       <Header>
         <Button
           variant="outline"
           onClick={() => navigate('/dashboard')}
-          className="mb-4"
+          className="mb-4 text-black"
         >
-          <ArrowLeft className="mr-2 h-4 w-4" /> Back
+          <ArrowLeft className="mr-2 h-4 w-4 " /> Back
         </Button>
 
-        <Title>Token List</Title>
-        <Subtitle>View all launched tokens</Subtitle>
+        <h1 className='text-black text-4xl font-bold'>Token List</h1>
+        <p className="text-black  text-xl">View all launched tokens</p>
 
-        <Button onClick={() => navigate('/launch')} className="bg-[#00FFA3] text-black hover:bg-[#00DD8C]">
+        <Button onClick={() => navigate('/launch')} className="bg-gradient-to-r from-blue-500 to-blue-200 text-black hover:bg-[#00DD8C]">
           Create New AI Agent
         </Button>
 
@@ -731,8 +732,8 @@ export const TokenList: React.FC = () => {
         <Grid>
           {filteredTokens.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-white/80 mb-4">No tokens found</p>
-              <Button onClick={() => navigate('/launch')}>
+              <p className="text-black mb-4">No tokens found</p>
+              <Button onClick={() => navigate('/launch')} className="bg-[#00FFA3] text-black hover:bg-[#00DD8C]">
                 Launch Your First Token
               </Button>
             </div>
@@ -752,6 +753,7 @@ export const TokenList: React.FC = () => {
         onConfirm={handleAddLiquidity}
         tokenName={selectedToken?.name || ''}
       />
-    </Container>
+    </div>
+    </div>
   );
 };

@@ -15,7 +15,7 @@ export interface TokenData {
     agentType: string;
     creatorAddress: string;
     imageUrl: string;
-    networkType: string;
+    networkType: "testnet" | "mainnet";
     totalSupply: string;
     decimals: number;
     price: number;

@@ -211,9 +211,10 @@ export const Settings = () => {
   const networkType = network === 'testnet' ? 'TON Testnet' : 'TON Mainnet';
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold  text-white mb-8">Wallet Settings</h1>
-      
+    <div className="min-h-screen bg-white">
+      <div className="container bg-gradient-to-r from-blue-500 to-blue-200 mx-auto px-4 py-8">
+        <h1 className="text-3xl font-bold  text-black mb-8">Wallet Settings</h1>
+        
       <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
@@ -320,6 +321,7 @@ export const Settings = () => {
           </a>
         </div>
       </div>
+    </div>
     </div>
   );
 };

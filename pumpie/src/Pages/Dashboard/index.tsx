@@ -103,7 +103,7 @@ export const Dashboard = () => {
   const renderTokenCard = (token: TokenData) => (
     <Card 
       key={token._id} 
-      className="p-4 cursor-pointer hover:bg-gray-800 transition-colors"
+      className="p-4 cursor-pointer bg-gradient-to-r from-blue-500 to-blue-200 hover:bg-gray-800 transition-colors"
       onClick={() => navigate(`/token/${token._id}`)}
     >
       <div className="flex items-center space-x-4">
@@ -119,18 +119,18 @@ export const Dashboard = () => {
         <div className="flex-1">
           <h3 className="text-lg font-semibold">{token.name}</h3>
           <div className="flex items-center gap-2">
-            <p className="text-sm text-gray-400">{token.symbol}</p>
+            <p className="text-sm text-black">{token.symbol}</p>
             {token.inPool && (
               <span className="px-2 py-0.5 text-xs bg-green-500/20 text-green-400 rounded-full">
                 In Pool
               </span>
             )}
           </div>
-          <p className="text-sm text-gray-400 mt-1">{token.agentType}</p>
+          <p className="text-sm text-black mt-1">{token.agentType}</p>
         </div>
         <div className="text-right">
           <p className="text-lg">{token.price !== undefined && token.price > 0 ? `$${token.price.toFixed(4)}` : 'N/A'}</p>
-          <p className="text-sm text-gray-400">
+          <p className="text-sm text-black">
             {token.inPool ? `In Pool` : 'Not in Pool'}
           </p>
         </div>
@@ -139,16 +139,16 @@ export const Dashboard = () => {
   );
 
   return (
-    <div className="min-h-screen  text-white">
+    <div className="min-h-screen bg-white  text-black">
       <NavBar />
       <div className="container mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold">Token Dashboard</h1>
           <div className="flex items-center space-x-4">
-            <Button onClick={() => navigate('/launch')} className="bg-[#00FFA3] text-black hover:bg-[#00DD8C]">
+            <Button onClick={() => navigate('/launch')} className=" text-black bg-gradient-to-r from-blue-500 to-blue-200 hover:bg-[#4364f8]">
               Create New AI Agent
             </Button>
-            <Button onClick={() => navigate('/tokens')} className="bg-[#00FFA3] text-black hover:bg-[#00DD8C] flex items-center gap-2">
+            <Button onClick={() => navigate('/tokens')} className=" text-black  bg-gradient-to-r from-blue-500 to-blue-200 hover:bg-[#4364f8] flex items-center gap-2">
               Tokens <ArrowRight className="w-4 h-4" />
             </Button>
           </div>

@@ -1,11 +1,11 @@
 {
   "url": "http://localhost:5173",
-  "name": "Pumpie",
+  "name": "angelpoop",
   "iconUrl": "/logo.svg",
   "termsOfUseUrl": "http://localhost:5173/terms",
   "privacyPolicyUrl": "http://localhost:5173/privacy",
   "testnet": true,
-  "about": "Pumpie - AI-Powered Decentralized Trading Platform on TON",
+  "about": "Angelpoop - AI-Powered Decentralized Trading Platform on TON",
   "version": "1.0.0",
   "items": [
     {

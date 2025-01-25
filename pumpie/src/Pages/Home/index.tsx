@@ -20,22 +20,22 @@ const Home: React.FC = () => {
 
   // If not connected, show the home page
   return (
-    <div className="h-screen overflow-hidden bg-white">
-      <div className="horizontal-scroll-container">
-        <div className="horizontal-sections">
-          <section id="hero" className="horizontal-section">
+    <div className=" overflow-hidden bg-white">
+      <div className="">
+        <div className="">
+          <section id="hero" className="">
             <Hero />
           </section>
           
-          <section id="features" className="horizontal-section">
+          <section id="features" className="">
             <Features />
           </section>
           
-          <section id="about" className="horizontal-section">
+          <section id="about" className="">
             <About />
           </section>
 
-          <section id="footer" className="horizontal-section">
+          <section id="footer" className="">
             <Footer />
           </section>
         </div>

@@ -14,7 +14,7 @@ export const Footer: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             {/* Brand */}
             <div className="col-span-1">
-              <h3 className="text-lg font-semibold text-gray-900">Pumpie</h3>
+              <h3 className="text-lg font-semibold text-gray-900">Angelpoop</h3>
               <p className="mt-4 text-sm text-gray-600">
                 AI-Powered Launchpad for TON Chain Projects
               </p>
@@ -89,7 +89,7 @@ export const Footer: React.FC = () => {
 
           <div className="mt-8 border-t border-gray-200 pt-8">
             <p className="text-base text-gray-400 text-center">
-              &copy; {new Date().getFullYear()} Pumpie. All rights reserved.
+              &copy; {new Date().getFullYear()}AngelPoop. All rights reserved.
             </p>
           </div>
         </div>

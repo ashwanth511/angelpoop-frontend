@@ -60,6 +60,9 @@ interface ApiResponse<T> {
   agent?: T;
 }
 
+// Add this type
+type CreateAgentPayload = Pick<AgentData, 'tokenId' | 'name' | 'agentType' | 'description' | 'personality'>;
+
 // API service object
 export const api = {
   // Generic HTTP methods
@@ -76,8 +79,10 @@ export const api = {
   // Token APIs
   createToken: async (tokenData: TokenData) => {
     try {
-      console.log('API: Creating token with data:', tokenData);
-      const response = await axios.post<ApiResponse<TokenData>>(`${API_BASE_URL}/create-token`, tokenData);
+      // Remove _id field if present to let MongoDB generate it
+      const { _id, ...tokenDataWithoutId } = tokenData;
+      console.log('API: Creating token with data:', tokenDataWithoutId);
+      const response = await axios.post<ApiResponse<TokenData>>(`${API_BASE_URL}/create-token`, tokenDataWithoutId);
       console.log('API: Create token response:', response.data);
       return response.data;
     } catch (error: any) {

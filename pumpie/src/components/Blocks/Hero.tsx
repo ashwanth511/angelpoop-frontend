@@ -6,7 +6,8 @@ import './features.css'
 import HeroImg from '../../assets/hero-1.webp'
 import { Link } from "react-router-dom"
 import { ArrowRight } from 'lucide-react'
-
+import bgWalking from '../../assets/bg_walking.gif?url'
+import dam from '../../assets/dam.jpg'
 export default function Hero() {
   return (
     <div className="bg-white">
@@ -24,25 +25,25 @@ export default function Hero() {
             <div className="space-y-8">
               <h1 className="text-6xl font-bold leading-tight">
                 <span className="text-primary text-7xl">AngelPoop</span>{" "}
-                <span className="courier-font">Ai tOKEN Launchpad</span>
+                <span className="courier-font">Ai Agent Launchpad</span>
               </h1>
               
               <p className="text-xl text-gray-600 dark:text-gray-400">
                 Launch your next viral coin with confidence. Simple, secure, and community-driven 
-                platform for creating and managing meme tokens on the blockchain.
+                platform for creating and managing AI  tokens on the blockchain.
               </p>
               
               <div className="flex flex-col sm:flex-row gap-4">
                 <Link
-                  to="/"
+                  to="/dashboard"
                   className="bg-primary hover:bg-primary/90 text-white px-8 py-4 rounded-lg font-medium inline-flex items-center"
                 >
-                  Launch Your Token
+                  Launch Token
                   <ArrowRight className="ml-2" />
                 </Link>
                 <Link
                   to="/explore"
-                  className="bg-secondary/10 hover:bg-secondary/20 text-secondary px-8 py-4 rounded-lg font-medium inline-flex items-center"
+                  className="bg-primary/10 hover:bg-primary/20 text-primary px-8 py-4 rounded-lg font-medium inline-flex items-center"
                 >
                   Explore Tokens
                 </Link>
@@ -59,18 +60,62 @@ export default function Hero() {
                   
                       <img 
                         src={HeroImg} 
-                        alt="Pumpie Blockchain Launchpad"
+                        alt="Angelpooop Blockchain Launchpad"
                         className="w-full h-full object-contain"
                       />
                   
                  
                   </div>
+
+
+                  
                 </main>
               </div>
             </div>
+
+
+
+            
           </div>
+         
         </main>
+
+        {/* GIF Section */}
+      
       </div>
+
+      <div className="w-full overflow-hidden mt-[-12%] relative">
+          {/* Background Image */}
+          <div className="absolute inset-1 z-0 w-full">
+            <img 
+              src={dam} 
+              alt="Background" 
+              className="w-full h-full opacity-20"
+              style={{ 
+                minWidth: '150vw',
+                objectFit: 'cover',
+                height: '100%'
+              }}
+            />
+          </div>
+
+          {/* GIF Container */}
+          <div className="relative z-10 w-full">
+            <div className="flex justify-center items-center">
+              <img 
+                src={bgWalking}
+                alt="Angelpoop Animation" 
+                className="w-full"
+                style={{ 
+                  minWidth: '100vw',
+                  objectFit: 'cover',
+                  height: 'auto'
+                }}
+                loading="eager"
+              />
+            </div>
+          </div>
+        </div> 
     </div>
   )
 }

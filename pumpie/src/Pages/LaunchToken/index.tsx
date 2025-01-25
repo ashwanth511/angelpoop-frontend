@@ -239,6 +239,8 @@ export const LaunchToken: React.FC = () => {
       }
 
       // Create token in database
+      const networkType = network === 'testnet' ? 'testnet' : 'mainnet' as const;
+
       const tokenData: TokenData = {
         name: formData.tokenName,
         symbol: formData.tokenSymbol,
@@ -248,7 +250,7 @@ export const LaunchToken: React.FC = () => {
         agentType: formData.agentType,
         creatorAddress: getNonBounceableAddress(wallet.address, network === 'testnet'),
         imageUrl,
-        networkType: network === 'testnet' ? 'testnet' : 'mainnet',
+        networkType,
         tokenAddress,
         liquidityProgress: 0,
         _id: '',
@@ -264,31 +266,36 @@ export const LaunchToken: React.FC = () => {
         updatedAt: '',
         __v: 0,
         poolAddress: ''
-      };
+      } as const;
 
       try {
         const response = await api.createToken(tokenData) as TokenResponse;
         
         if (response.success && response.token) {
           // Create AI agent
-          const agentData: AIAgentConfig = {
+          const agentConfig: AIAgentConfig = {
+            telegramBotToken: '',
             projectDescription: formData.projectDescription,
             tokenName: formData.tokenName,
             tokenSymbol: formData.tokenSymbol,
             aiConfig: {
               handleAnnouncements: true,
               handleUserQueries: true,
-              customInstructions: `This is an AI agent for the ${formData.tokenName} (${formData.tokenSymbol}) token. ${formData.projectDescription}`,
+              customInstructions: '',
               name: formData.tokenName,
               type: formData.agentType,
               description: formData.projectDescription
             },
-            platformType: 'telegram' as const, // Type assertion to match the union type
-              tokenId: response.token._id
+            platformType: 'telegram' as const,
+            tokenId: response.token._id,
+            type: formData.agentType,
+            name: formData.tokenName,
+            initialLiquidity: '',
+            tokenAddress: response.token.tokenAddress || ''
           };
 
           try {
-            const agentResponse = await createAgent(agentData);
+            const agentResponse = await createAgent(agentConfig);
             if (agentResponse.success) {
               toast.success('🤖 AI Agent created successfully!');
             }
@@ -494,101 +501,103 @@ export const LaunchToken: React.FC = () => {
   };
 
   return (
-    <div className="container mx-auto p-6">
-      <NavBar />
-      <div className="flex items-center justify-between p-5 mb-6">
-        <h1 className="text-2xl font-bold text-white">Launch Your Token</h1>
-        <div className="text-gray-400">
-          Step {step} of 2
-        </div>
-      </div>
-
-      {/* Progress Bar */}
-      <div className="w-full bg-gray-700 rounded-full h-2 mb-6">
-        <div 
-          className="bg-[#00FFA3] h-2 rounded-full transition-all duration-300"
-          style={{ width: `${(step / 2) * 100}%` }}
-        />
-      </div>
-
-      <Card className="bg-gray-900 p-6">
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {step === 1 ? renderStep1() : renderStep2()}
-
-          <div className="flex justify-between pt-4">
-            {step === 2 && (
-              <Button
-                type="button"
-                onClick={handlePrevStep}
-                className="bg-gray-700 hover:bg-gray-600"
-              >
-                Back
-              </Button>
-            )}
-            
-            {step === 1 ? (
-              <Button
-                type="button"
-                onClick={handleNextStep}
-                className="bg-[#00FFA3] text-black hover:bg-[#00DD8C]"
-              >
-                Next
-              </Button>
-            ) : (
-              <Button
-                type="submit"
-                disabled={isLoading}
-                className="bg-[#00FFA3] text-black hover:bg-[#00DD8C] disabled:opacity-50"
-              >
-                {isLoading ? 'Launching...' : 'Launch Token'}
-              </Button>
-            )}
+    <div className="min-h-screen bg-white">
+      <div className="container mx-auto p-6">
+        <NavBar />
+        <div className="flex items-center justify-between p-5 mb-6">
+          <h1 className="text-2xl font-bold text-black">Launch Your Token</h1>
+          <div className="text-black">
+            Step {step} of 2
           </div>
-        </form>
-      </Card>
+        </div>
 
-      {/* Success Modal */}
-      <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
-        <DialogContent className="bg-gray-900 text-white">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-bold text-[#00FFA3]">
-              🎉 Congratulations!
-            </DialogTitle>
-            <DialogDescription className="text-gray-300">
-              <div className="space-y-4 mt-4">
-                <div className="bg-gray-800 p-4 rounded-lg">
-                  <h3 className="font-semibold text-white mb-2">Token Details:</h3>
-                  <p>Name: {launchedToken?.name}</p>
-                  <p>Type: {launchedToken?.agentType}</p>
-                  <p>Network: {network}</p>
-                </div>
-                
-                <div className="bg-gray-800 p-4 rounded-lg">
-                  <h3 className="font-semibold text-white mb-2">What's Next?</h3>
-                  <ul className="list-disc list-inside space-y-2">
-                    <li>Your token is now live and ready to interact</li>
-                    <li>You can manage your token from the dashboard</li>
-                    <li>Share your token with the community</li>
-                    <li>Start engaging with users through your token</li>
-                  </ul>
-                </div>
+        {/* Progress Bar */}
+        <div className="w-full bg-gray-700 rounded-full h-2 mb-6">
+          <div 
+            className="bg-[#00FFA3] h-2 rounded-full transition-all duration-300"
+            style={{ width: `${(step / 2) * 100}%` }}
+          />
+        </div>
 
-                <div className="flex justify-center mt-4">
-                  <Button
-                    onClick={() => {
-                      setShowSuccessModal(false);
-                      navigate(`/token/${launchedToken?.id}`);
-                    }}
-                    className="bg-[#00FFA3] text-black hover:bg-[#00DD8C]"
-                  >
-                    View My Token
-                  </Button>
+        <Card className="bg-gray-900 p-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {step === 1 ? renderStep1() : renderStep2()}
+
+            <div className="flex justify-between pt-4">
+              {step === 2 && (
+                <Button
+                  type="button"
+                  onClick={handlePrevStep}
+                  className="bg-gray-700 hover:bg-gray-600"
+                >
+                  Back
+                </Button>
+              )}
+              
+              {step === 1 ? (
+                <Button
+                  type="button"
+                  onClick={handleNextStep}
+                  className="bg-[#00FFA3] text-black hover:bg-[#00DD8C]"
+                >
+                  Next
+                </Button>
+              ) : (
+                <Button
+                  type="submit"
+                  disabled={isLoading}
+                  className="bg-[#00FFA3] text-black hover:bg-[#00DD8C] disabled:opacity-50"
+                >
+                  {isLoading ? 'Launching...' : 'Launch Token'}
+                </Button>
+              )}
+            </div>
+          </form>
+        </Card>
+
+        {/* Success Modal */}
+        <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
+          <DialogContent className="bg-gray-900 text-white">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-bold text-[#00FFA3]">
+                🎉 Congratulations!
+              </DialogTitle>
+              <DialogDescription className="text-gray-300">
+                <div className="space-y-4 mt-4">
+                  <div className="bg-gray-800 p-4 rounded-lg">
+                    <h3 className="font-semibold text-white mb-2">Token Details:</h3>
+                    <p>Name: {launchedToken?.name}</p>
+                    <p>Type: {launchedToken?.agentType}</p>
+                    <p>Network: {network}</p>
+                  </div>
+                  
+                  <div className="bg-gray-800 p-4 rounded-lg">
+                    <h3 className="font-semibold text-white mb-2">What's Next?</h3>
+                    <ul className="list-disc list-inside space-y-2">
+                      <li>Your token is now live and ready to interact</li>
+                      <li>You can manage your token from the dashboard</li>
+                      <li>Share your token with the community</li>
+                      <li>Start engaging with users through your token</li>
+                    </ul>
+                  </div>
+
+                  <div className="flex justify-center mt-4">
+                    <Button
+                      onClick={() => {
+                        setShowSuccessModal(false);
+                        navigate(`/token/${launchedToken?.id}`);
+                      }}
+                      className="bg-[#00FFA3] text-black hover:bg-[#00DD8C]"
+                    >
+                      View My Token
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            </DialogDescription>
-          </DialogHeader>
-        </DialogContent>
-      </Dialog>
+              </DialogDescription>
+            </DialogHeader>
+          </DialogContent>
+        </Dialog>
+      </div>
     </div>
   );
 };

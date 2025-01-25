@@ -14,6 +14,8 @@ const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 const activeAgents = new Map<string, AIAgent>();
 
 export interface AIAgentConfig {
+  type: any;
+  name: any;
   telegramBotToken?: string;
   twitterConfig?: {
     apiKey: string;
@@ -25,6 +27,8 @@ export interface AIAgentConfig {
   tokenName: string;
   tokenSymbol: string;
   description?: string;
+  initialLiquidity?: string;
+  tokenAddress?: string;
   aiConfig: {
     handleAnnouncements: boolean;
     handleUserQueries: boolean;
@@ -46,7 +50,7 @@ export interface TokenInfo {
   description?: string;
   projectDescription?: string;
   agentType: 'entertainment' | 'utility' | 'social' | 'defi';
-  networkType?: string;
+  networkType?: 'testnet' | 'mainnet';
 }
 
 interface AgentData {
@@ -57,8 +61,9 @@ interface AgentData {
   website?: string;
   telegram?: string;
   twitter?: string;
-  initialLiquidity?: string; // Now optional
+  initialLiquidity?: string;
   tokenAddress?: string;
+  networkType?: 'testnet' | 'mainnet';
   personality: {
     handleUserQueries: boolean;
     customInstructions: string;
@@ -67,42 +72,57 @@ interface AgentData {
   lastActive?: Date;
 }
 
-
 interface AgentTemplate {
+  personality: {
+    traits: string[];
+    tone: string;
+    communication_style: string;
+    interests: string[];
+  };
+  functions: string[];
   default_responses: {
     error: string;
     busy: string;
-    greeting: string; // Add greeting property
+    greeting: string;
   };
-  // ... other template properties
 }
-
 
 // Agent store for global state
 interface AgentState {
   agents: { [tokenId: string]: AIAgent };
+  forumPosts: any[]; // Update with proper type
   addAgent: (tokenId: string, agent: AIAgent) => void;
   getAgent: (tokenId: string) => AIAgent | undefined;
   createAgent: (agentData: AIAgentConfig) => Promise<{ success: boolean; message: string }>;
+  createForumPost: (post: any) => void; // Update with proper type
+  addForumReply: (postId: string, reply: any) => void; // Update with proper type
 }
 
 export const useAgentStore = create<AgentState>((set, get) => ({
   agents: {},
-  addAgent: (tokenId: string, agent: AIAgent) => set(state => ({ agents: { ...state.agents, [tokenId]: agent } })),
+  forumPosts: [],
+  addAgent: (tokenId: string, agent: AIAgent) => {
+    set((state) => ({
+      agents: {
+        ...state.agents,
+        [tokenId]: agent,
+      },
+    }));
+  },
   getAgent: (tokenId: string) => get().agents[tokenId],
-
   createAgent: async (agentData: AIAgentConfig) => {
     try {
-      // Convert AIAgentConfig to AgentData
-      const agentDataForApi: AgentData = {
+      const agentDataForApi = {
         tokenId: agentData.tokenId || '',
-        name: agentData.tokenName,
-        agentType: agentData.aiConfig.type,
-        description: agentData.projectDescription,
+        name: agentData.name,
+        agentType: agentData.type,
+        description: agentData.description || '',  // Provide default empty string
         personality: {
           handleUserQueries: agentData.aiConfig.handleUserQueries,
           customInstructions: agentData.aiConfig.customInstructions
-        }
+        },
+        initialLiquidity: agentData.initialLiquidity || '',
+        tokenAddress: agentData.tokenAddress || ''
       };
 
       const response = await api.createAgent(agentDataForApi);
@@ -114,7 +134,21 @@ export const useAgentStore = create<AgentState>((set, get) => ({
       console.error('Error creating agent:', error);
       return { success: false, message: 'Error creating agent' };
     }
-  }
+  },
+  createForumPost: (post) => {
+    set((state) => ({
+      forumPosts: [...state.forumPosts, post],
+    }));
+  },
+  addForumReply: (postId, reply) => {
+    set((state) => ({
+      forumPosts: state.forumPosts.map((post) =>
+        post.id === postId
+          ? { ...post, replies: [...post.replies, reply] }
+          : post
+      ),
+    }));
+  },
 }));
 
 export class AIAgent {
@@ -131,6 +165,30 @@ export class AIAgent {
     this.client = new TonClient({
       endpoint: 'https://toncenter.com/api/v2/jsonRPC',
     });
+  }
+
+  static async loadFromDatabase(tokenId: string): Promise<AIAgent> {
+    try {
+      const agent = new AIAgent(tokenId);
+      
+      // Try to load from database
+      const response = await axios.get(`${BASE_URL}/api/agent/${tokenId}`);
+      
+      if (response.data.success && response.data.agent) {
+        // If agent exists in database, use that data
+        agent.tokenInfo = response.data.agent.tokenInfo;
+        agent.personality = response.data.agent.personality;
+        agent.context = response.data.agent.context;
+      } else {
+        // If agent doesn't exist, initialize it
+        await agent.initialize();
+      }
+      
+      return agent;
+    } catch (error) {
+      console.error('Error loading agent from database:', error);
+      throw new Error('Failed to load agent from database');
+    }
   }
 
   setUserLanguage(language: string) {
@@ -458,31 +516,6 @@ User message: ${message}`;
     } catch (error) {
       console.error('Error processing message:', error);
       return "I apologize, but I'm having trouble processing your message right now. Please try again later.";
-    }
-  }
-
-  static async loadFromDatabase(tokenId: string): Promise<AIAgent> {
-    try {
-      // Create a new instance
-      const agent = new AIAgent(tokenId);
-      
-      // Try to load from database
-      const response = await axios.get(`${BASE_URL}/api/agent/${tokenId}`);
-      
-      if (response.data.success && response.data.agent) {
-        // If agent exists in database, use that data
-        agent.tokenInfo = response.data.agent.tokenInfo;
-        agent.personality = response.data.agent.personality;
-        agent.context = response.data.agent.context;
-      } else {
-        // If agent doesn't exist, initialize it
-        await agent.initialize();
-      }
-      
-      return agent;
-    } catch (error) {
-      console.error('Error loading agent from database:', error);
-      throw new Error('Failed to load agent from database');
     }
   }
 }
