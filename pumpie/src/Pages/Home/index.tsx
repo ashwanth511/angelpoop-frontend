@@ -27,7 +27,7 @@ const Home: React.FC = () => {
             <Hero />
           </section>
           
-          <section id="features" className="">
+          <section id="features" className="mt-[180px]">
             <Features />
           </section>
           

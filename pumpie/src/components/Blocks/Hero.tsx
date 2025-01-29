@@ -52,7 +52,7 @@ export default function Hero() {
                 </Link>
                 <Link
                   to="/explore"
-                  className="bg-white/10 hover:bg-white/20 text-white px-8 py-4 rounded-lg font-medium inline-flex items-center backdrop-blur-sm"
+                  className="bg-[#4A90E2] hover:bg-white/20 text-white px-8 py-4 rounded-lg font-medium inline-flex items-center backdrop-blur-sm"
                 >
                   Explore Tokens
                 </Link>
