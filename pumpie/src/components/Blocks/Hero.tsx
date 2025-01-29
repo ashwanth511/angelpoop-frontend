@@ -20,59 +20,46 @@ export default function Hero() {
       <div className="relative">
        
         
-        <main className="max-w-7xl mx-auto px-6 py-8">
+        <main 
+          className="max-w-7xl mx-auto px-6 py-8 rounded-3xl"
+          style={{
+            backgroundImage: `url(${bgWalking})`,
+            backgroundRepeat: 'no-repeat',
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+    
+          }}
+        >
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div className="space-y-8">
-              <h1 className="text-6xl font-bold leading-tight">
-                <span className="text-primary text-7xl">AngelPoop</span>{" "}
-                <span className="courier-font">Ai Agent Launchpad</span>
+              <h1 className="text-6xl font-bold leading-tight text-white">
+                <span className="text-[#964B00] text-7xl">AngelPoop</span>{" "}
+                <span className="courier-font text-black">Ai Agent Launchpad</span>
               </h1>
               
-              <p className="text-xl text-gray-600 dark:text-gray-400">
+              <p className="text-xl text-black/80">
                 Launch your next viral coin with confidence. Simple, secure, and community-driven 
-                platform for creating and managing AI  tokens on the blockchain.
+                platform for creating and managing AI tokens on the blockchain.
               </p>
               
               <div className="flex flex-col sm:flex-row gap-4">
                 <Link
                   to="/dashboard"
-                  className="bg-primary hover:bg-primary/90 text-white px-8 py-4 rounded-lg font-medium inline-flex items-center"
+                  className="bg-[#4A90E2] hover:bg-[#6BB9F0] text-white px-8 py-4 rounded-lg font-medium inline-flex items-center"
                 >
                   Launch Token
                   <ArrowRight className="ml-2" />
                 </Link>
                 <Link
                   to="/explore"
-                  className="bg-primary/10 hover:bg-primary/20 text-primary px-8 py-4 rounded-lg font-medium inline-flex items-center"
+                  className="bg-white/10 hover:bg-white/20 text-white px-8 py-4 rounded-lg font-medium inline-flex items-center backdrop-blur-sm"
                 >
                   Explore Tokens
                 </Link>
               </div>
             </div>
             
-            <div className="lg:justify-self-end relative">
-              <div className="absolute bg-gradient-to-r from-[#7C3AED]/20 to-transparent rounded-3xl filter blur-xl"></div>
-              <div className=" relative overflow-hidden">
-                <main className="relative container mx-auto px-4 py-16">
-                  
-                  
-                  <div className="relative z-10 max-w-4xl mx-auto text-center">
-                  
-                      <img 
-                        src={HeroImg} 
-                        alt="Angelpooop Blockchain Launchpad"
-                        className="w-full h-full object-contain"
-                      />
-                  
-                 
-                  </div>
-
-
-                  
-                </main>
-              </div>
-            </div>
-
+          
 
 
             
@@ -84,38 +71,7 @@ export default function Hero() {
       
       </div>
 
-      <div className="w-full overflow-hidden mt-[-12%] relative">
-          {/* Background Image */}
-          <div className="absolute inset-1 z-0 w-full">
-            <img 
-              src={dam} 
-              alt="Background" 
-              className="w-full h-full opacity-20"
-              style={{ 
-                minWidth: '150vw',
-                objectFit: 'cover',
-                height: '100%'
-              }}
-            />
-          </div>
-
-          {/* GIF Container */}
-          <div className="relative z-10 w-full">
-            <div className="flex justify-center items-center">
-              <img 
-                src={bgWalking}
-                alt="Angelpoop Animation" 
-                className="w-full"
-                style={{ 
-                  minWidth: '100vw',
-                  objectFit: 'cover',
-                  height: 'auto'
-                }}
-                loading="eager"
-              />
-            </div>
-          </div>
-        </div> 
+   
     </div>
   )
 }
