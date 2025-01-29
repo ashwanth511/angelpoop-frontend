@@ -334,7 +334,7 @@ export const LaunchToken: React.FC = () => {
   const renderStep1 = () => (
     <div className="space-y-4">
       <div>
-        <label className="block text-sm font-medium text-gray-200 mb-1">
+        <label className="block text-sm font-medium text-[#2C3E50] mb-1">
           Token Name*
         </label>
         <input
@@ -342,14 +342,14 @@ export const LaunchToken: React.FC = () => {
           name="tokenName"
           value={formData.tokenName}
           onChange={handleInputChange}
-          className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:ring-2 focus:ring-[#00FFA3] focus:border-transparent"
+          className="w-full p-2 border border-[#4A90E2] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#6BB9F0]"
           placeholder="Enter token name"
           required
         />
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-200 mb-1">
+        <label className="block text-sm font-medium text-[#2C3E50] mb-1">
           Token Symbol*
         </label>
         <input
@@ -357,21 +357,21 @@ export const LaunchToken: React.FC = () => {
           name="tokenSymbol"
           value={formData.tokenSymbol}
           onChange={handleInputChange}
-          className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:ring-2 focus:ring-[#00FFA3] focus:border-transparent"
+          className="w-full p-2 border border-[#4A90E2] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#6BB9F0]"
           placeholder="Enter token symbol"
           required
         />
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-200 mb-1">
+        <label className="block text-sm font-medium text-[#2C3E50] mb-1">
           Description*
         </label>
         <textarea
           name="description"
           value={formData.description}
           onChange={handleInputChange}
-          className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:ring-2 focus:ring-[#00FFA3] focus:border-transparent"
+          className="w-full p-2 border border-[#4A90E2] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#6BB9F0]"
           placeholder="Enter token description"
           rows={3}
           required
@@ -379,14 +379,15 @@ export const LaunchToken: React.FC = () => {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-200 mb-1">
+        <label className="block text-sm font-medium text-[#2C3E50] mb-1">
           Agent Type*
         </label>
         <select
           name="agentType"
           value={formData.agentType}
           onChange={handleInputChange}
-          className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:ring-2 focus:ring-[#00FFA3] focus:border-transparent"
+          className="w-full p-2 border border-[#4A90E2] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#6BB9F0]"
+          required
         >
           <option value="entertainment">Entertainment</option>
           <option value="defi">DeFi</option>
@@ -397,25 +398,16 @@ export const LaunchToken: React.FC = () => {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-200 mb-1">
+        <label className="block text-sm font-medium text-[#2C3E50] mb-1">
           Token Image*
         </label>
         <input
           type="file"
           accept="image/*"
           onChange={handleImageUpload}
-          className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:ring-2 focus:ring-[#00FFA3] focus:border-transparent"
+          className="w-full p-2 border border-[#4A90E2] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#6BB9F0]"
           required
         />
-        {formData.imageFile && (
-          <div className="mt-2">
-            <img
-              src={URL.createObjectURL(formData.imageFile)}
-              alt="Preview"
-              className="w-24 h-24 object-cover rounded-lg"
-            />
-          </div>
-        )}
       </div>
     </div>
   );
@@ -423,56 +415,56 @@ export const LaunchToken: React.FC = () => {
   const renderStep2 = () => (
     <div className="space-y-4">
       <div>
-        <label className="block text-sm font-medium text-gray-200 mb-1">
-          Website (Optional)
+        <label className="block text-sm font-medium text-[#2C3E50] mb-1">
+          Website
         </label>
         <input
           type="url"
           name="website"
           value={formData.website}
           onChange={handleInputChange}
-          className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:ring-2 focus:ring-[#00FFA3] focus:border-transparent"
+          className="w-full p-2 border border-[#4A90E2] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#6BB9F0]"
           placeholder="https://your-website.com"
         />
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-200 mb-1">
-          Telegram (Optional)
+        <label className="block text-sm font-medium text-[#2C3E50] mb-1">
+          Telegram
         </label>
         <input
           type="text"
           name="telegram"
           value={formData.telegram}
           onChange={handleInputChange}
-          className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:ring-2 focus:ring-[#00FFA3] focus:border-transparent"
+          className="w-full p-2 border border-[#4A90E2] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#6BB9F0]"
           placeholder="@your_telegram"
         />
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-200 mb-1">
-          Twitter/X (Optional)
+        <label className="block text-sm font-medium text-[#2C3E50] mb-1">
+          Twitter
         </label>
         <input
           type="text"
           name="twitter"
           value={formData.twitter}
           onChange={handleInputChange}
-          className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:ring-2 focus:ring-[#00FFA3] focus:border-transparent"
+          className="w-full p-2 border border-[#4A90E2] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#6BB9F0]"
           placeholder="@your_twitter"
         />
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-200 mb-1">
+        <label className="block text-sm font-medium text-[#2C3E50] mb-1">
           Project Description*
         </label>
         <textarea
           name="projectDescription"
           value={formData.projectDescription}
           onChange={handleInputChange}
-          className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:ring-2 focus:ring-[#00FFA3] focus:border-transparent"
+          className="w-full p-2 border border-[#4A90E2] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#6BB9F0]"
           placeholder="Enter detailed project description"
           rows={4}
           required
@@ -501,100 +493,120 @@ export const LaunchToken: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white">
-      <div className="container mx-auto p-6">
-        <NavBar />
-        <div className="flex items-center justify-between p-5 mb-6">
-          <h1 className="text-2xl font-bold text-black">Launch Your Token</h1>
-          <div className="text-black">
-            Step {step} of 2
-          </div>
+    <div className="min-h-screen bg-[#FFFFFF] text-[#2C3E50]">
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold text-[#2C3E50]">Launch New Token</h1>
         </div>
 
-        {/* Progress Bar */}
-        <div className="w-full bg-gray-700 rounded-full h-2 mb-6">
-          <div 
-            className="bg-[#00FFA3] h-2 rounded-full transition-all duration-300"
-            style={{ width: `${(step / 2) * 100}%` }}
-          />
-        </div>
-
-        <Card className="bg-gray-900 p-6">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {step === 1 ? renderStep1() : renderStep2()}
-
-            <div className="flex justify-between pt-4">
-              {step === 2 && (
-                <Button
-                  type="button"
-                  onClick={handlePrevStep}
-                  className="bg-gray-700 hover:bg-gray-600"
-                >
-                  Back
-                </Button>
-              )}
-              
-              {step === 1 ? (
-                <Button
-                  type="button"
-                  onClick={handleNextStep}
-                  className="bg-[#00FFA3] text-black hover:bg-[#00DD8C]"
-                >
-                  Next
-                </Button>
-              ) : (
-                <Button
-                  type="submit"
-                  disabled={isLoading}
-                  className="bg-[#00FFA3] text-black hover:bg-[#00DD8C] disabled:opacity-50"
-                >
-                  {isLoading ? 'Launching...' : 'Launch Token'}
-                </Button>
-              )}
+        <Card className="max-w-3xl mx-auto p-6 bg-[#F5F7FA] border border-[#4A90E2]">
+          <div className="mb-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold text-[#2C3E50]">
+                {step === 1 ? 'Token Information' : 'Project Information'}
+              </h2>
+              <div className="text-sm text-[#2C3E50]">Step {step} of 2</div>
             </div>
-          </form>
+
+            <div className="flex mb-6">
+              <div className="w-full bg-[#4A90E2] h-2 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-[#6BB9F0] transition-all duration-300"
+                  style={{ width: `${step * 50}%` }}
+                />
+              </div>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {step === 1 ? renderStep1() : renderStep2()}
+
+              <div className="flex justify-between pt-4">
+                {step === 2 && (
+                  <Button
+                    type="button"
+                    onClick={handlePrevStep}
+                    className="bg-[#F5F7FA] text-[#2C3E50] border border-[#4A90E2] hover:bg-white"
+                  >
+                    Previous Step
+                  </Button>
+                )}
+                
+                {step === 1 ? (
+                  <Button
+                    type="button"
+                    onClick={handleNextStep}
+                    className="bg-[#4A90E2] text-white hover:bg-[#6BB9F0]"
+                  >
+                    Next Step
+                  </Button>
+                ) : (
+                  <Button
+                    type="submit"
+                    disabled={isLoading}
+                    className={`bg-[#4A90E2] text-white hover:bg-[#6BB9F0] ${
+                      isLoading ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
+                  >
+                    {isLoading ? (
+                      <div className="flex items-center">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Launching...
+                      </div>
+                    ) : (
+                      'Launch Token'
+                    )}
+                  </Button>
+                )}
+              </div>
+            </form>
+          </div>
         </Card>
 
         {/* Success Modal */}
         <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
-          <DialogContent className="bg-gray-900 text-white">
+          <DialogContent className="bg-[#FFFFFF] text-[#2C3E50] p-6 rounded-lg">
             <DialogHeader>
-              <DialogTitle className="text-2xl font-bold text-[#00FFA3]">
-                🎉 Congratulations!
-              </DialogTitle>
-              <DialogDescription className="text-gray-300">
-                <div className="space-y-4 mt-4">
-                  <div className="bg-gray-800 p-4 rounded-lg">
-                    <h3 className="font-semibold text-white mb-2">Token Details:</h3>
-                    <p>Name: {launchedToken?.name}</p>
-                    <p>Type: {launchedToken?.agentType}</p>
-                    <p>Network: {network}</p>
-                  </div>
-                  
-                  <div className="bg-gray-800 p-4 rounded-lg">
-                    <h3 className="font-semibold text-white mb-2">What's Next?</h3>
-                    <ul className="list-disc list-inside space-y-2">
-                      <li>Your token is now live and ready to interact</li>
-                      <li>You can manage your token from the dashboard</li>
-                      <li>Share your token with the community</li>
-                      <li>Start engaging with users through your token</li>
-                    </ul>
-                  </div>
-
-                  <div className="flex justify-center mt-4">
-                    <Button
-                      onClick={() => {
-                        setShowSuccessModal(false);
-                        navigate(`/token/${launchedToken?.id}`);
-                      }}
-                      className="bg-[#00FFA3] text-black hover:bg-[#00DD8C]"
-                    >
-                      View My Token
-                    </Button>
-                  </div>
-                </div>
+              <DialogTitle className="text-2xl font-bold text-[#2C3E50] mb-2">Token Launch Successful!</DialogTitle>
+              <DialogDescription className="text-[#2C3E50]">
+                Your token has been successfully launched.
               </DialogDescription>
             </DialogHeader>
+            <div className="mt-4 space-y-4">
+              {launchedToken && (
+                <>
+                  <div>
+                    <p className="font-medium">Token Name:</p>
+                    <p>{launchedToken.name}</p>
+                  </div>
+                  <div>
+                    <p className="font-medium">Agent Type:</p>
+                    <p>{launchedToken.agentType}</p>
+                  </div>
+                </>
+              )}
+              <div className="flex justify-end space-x-4 mt-6">
+                <Button
+                  onClick={() => {
+                    setShowSuccessModal(false);
+                    navigate('/dashboard');
+                  }}
+                  className="bg-[#4A90E2] text-white hover:bg-[#6BB9F0]"
+                >
+                  Go to Dashboard
+                </Button>
+                {launchedToken && (
+                  <Button
+                    onClick={() => {
+                      setShowSuccessModal(false);
+                      navigate(`/token/${launchedToken.id}`);
+                    }}
+                    className="bg-[#4A90E2] text-white hover:bg-[#6BB9F0]"
+                  >
+                    View Token
+                  </Button>
+                )}
+              </div>
+            </div>
           </DialogContent>
         </Dialog>
       </div>

@@ -103,7 +103,7 @@ export const Dashboard = () => {
   const renderTokenCard = (token: TokenData) => (
     <Card 
       key={token._id} 
-      className="p-4 cursor-pointer bg-gradient-to-r from-blue-500 to-blue-200 hover:bg-gray-800 transition-colors"
+      className="p-4 cursor-pointer bg-[#F5F7FA] border border-[#4A90E2] hover:bg-white hover:shadow-lg transition-all duration-300"
       onClick={() => navigate(`/token/${token._id}`)}
     >
       <div className="flex items-center space-x-4">
@@ -117,20 +117,20 @@ export const Dashboard = () => {
           }}
         />
         <div className="flex-1">
-          <h3 className="text-lg font-semibold">{token.name}</h3>
+          <h3 className="text-lg font-semibold text-[#2C3E50]">{token.name}</h3>
           <div className="flex items-center gap-2">
-            <p className="text-sm text-black">{token.symbol}</p>
+            <p className="text-sm text-[#2C3E50]">{token.symbol}</p>
             {token.inPool && (
-              <span className="px-2 py-0.5 text-xs bg-green-500/20 text-green-400 rounded-full">
+              <span className="px-2 py-0.5 text-xs bg-[#4A90E2] text-white rounded-full">
                 In Pool
               </span>
             )}
           </div>
-          <p className="text-sm text-black mt-1">{token.agentType}</p>
+          <p className="text-sm text-[#2C3E50] mt-1">{token.agentType}</p>
         </div>
         <div className="text-right">
-          <p className="text-lg">{token.price !== undefined && token.price > 0 ? `$${token.price.toFixed(4)}` : 'N/A'}</p>
-          <p className="text-sm text-black">
+          <p className="text-lg text-[#2C3E50]">{token.price !== undefined && token.price > 0 ? `$${token.price.toFixed(4)}` : 'N/A'}</p>
+          <p className="text-sm text-[#2C3E50]">
             {token.inPool ? `In Pool` : 'Not in Pool'}
           </p>
         </div>
@@ -139,28 +139,27 @@ export const Dashboard = () => {
   );
 
   return (
-    <div className="min-h-screen bg-white  text-black">
+    <div className="min-h-screen bg-[#FFFFFF] text-[#2C3E50]">
       <NavBar />
       <div className="container mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold">Token Dashboard</h1>
+          <h1 className="text-3xl font-bold text-[#2C3E50]">Token Dashboard</h1>
           <div className="flex items-center space-x-4">
-            <Button onClick={() => navigate('/launch')} className=" text-black bg-gradient-to-r from-blue-500 to-blue-200 hover:bg-[#4364f8]">
+            <Button onClick={() => navigate('/launch')} className="bg-[#4A90E2] text-white hover:bg-[#6BB9F0]">
               Create New AI Agent
             </Button>
-            <Button onClick={() => navigate('/tokens')} className=" text-black  bg-gradient-to-r from-blue-500 to-blue-200 hover:bg-[#4364f8] flex items-center gap-2">
+            <Button onClick={() => navigate('/tokens')} className="bg-[#4A90E2] text-white hover:bg-[#6BB9F0] flex items-center gap-2">
               Tokens <ArrowRight className="w-4 h-4" />
             </Button>
           </div>
         </div>
         {/* Custom Tabs */}
-        <div className="flex space-x-4 mb-8 border-b border-gray-800">
-
+        <div className="flex space-x-4 mb-8 border-b border-[#F5F7FA]">
           <button
             className={`px-4 py-2 text-sm font-medium ${
               activeTab === 'recent'
-                ? 'text-blue-500 border-b-2 border-blue-500'
-                : 'text-gray-400 hover:text-gray-300'
+                ? 'text-[#4A90E2] border-b-2 border-[#4A90E2]'
+                : 'text-[#2C3E50] hover:text-[#6BB9F0]'
             }`}
             onClick={() => setActiveTab('recent')}
           >
@@ -169,8 +168,8 @@ export const Dashboard = () => {
           <button
             className={`px-4 py-2 text-sm font-medium ${
               activeTab === 'listed'
-                ? 'text-blue-500 border-b-2 border-blue-500'
-                : 'text-gray-400 hover:text-gray-300'
+                ? 'text-[#4A90E2] border-b-2 border-[#4A90E2]'
+                : 'text-[#2C3E50] hover:text-[#6BB9F0]'
             }`}
             onClick={() => setActiveTab('listed')}
           >
@@ -179,8 +178,8 @@ export const Dashboard = () => {
           <button
             className={`px-4 py-2 text-sm font-medium ${
               activeTab === 'pool'
-                ? 'text-blue-500 border-b-2 border-blue-500'
-                : 'text-gray-400 hover:text-gray-300'
+                ? 'text-[#4A90E2] border-b-2 border-[#4A90E2]'
+                : 'text-[#2C3E50] hover:text-[#6BB9F0]'
             }`}
             onClick={() => setActiveTab('pool')}
           >
@@ -192,40 +191,43 @@ export const Dashboard = () => {
         <div className="space-y-4">
           {loading ? (
             <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
-              <p className="mt-2 text-gray-400">Loading tokens...</p>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#4A90E2] mx-auto"></div>
+              <p className="mt-2 text-[#2C3E50]">Loading tokens...</p>
             </div>
           ) : (
             <>
               {activeTab === 'recent' && (
                 <div className="space-y-4">
-                  <h2 className="text-xl font-semibold mb-4">Recently Launched Tokens</h2>
                   {recentlyLaunched.length > 0 ? (
                     recentlyLaunched.map(renderTokenCard)
                   ) : (
-                    <p className="text-gray-400">No recently launched tokens</p>
+                    <div className="text-center py-8">
+                      <p className="text-[#2C3E50]">No recently launched tokens</p>
+                    </div>
                   )}
                 </div>
               )}
 
               {activeTab === 'listed' && (
                 <div className="space-y-4">
-                  <h2 className="text-xl font-semibold mb-4">Listed Tokens (DEX Ready)</h2>
                   {listedTokens.length > 0 ? (
                     listedTokens.map(renderTokenCard)
                   ) : (
-                    <p className="text-gray-400">No listed tokens</p>
+                    <div className="text-center py-8">
+                      <p className="text-[#2C3E50]">No tokens listed yet</p>
+                    </div>
                   )}
                 </div>
               )}
 
               {activeTab === 'pool' && (
                 <div className="space-y-4">
-                  <h2 className="text-xl font-semibold mb-4">Tokens in Pool</h2>
                   {inPoolTokens.length > 0 ? (
                     inPoolTokens.map(renderTokenCard)
                   ) : (
-                    <p className="text-gray-400">No tokens in pool</p>
+                    <div className="text-center py-8">
+                      <p className="text-[#2C3E50]">No tokens in pool</p>
+                    </div>
                   )}
                 </div>
               )}

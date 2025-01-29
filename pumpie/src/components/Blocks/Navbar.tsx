@@ -81,8 +81,7 @@ export const NavBar = () => {
   };
 
   return (
-    // <nav className="fixed top-0 left-0 right-0 z-50 bg-[#14002A]/80 backdrop-blur-md border-b border-white/10">
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-[#1400Ba]/80 backdrop-blur-md border-b border-white/10">
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-[#4A90E2] shadow-md">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center">
@@ -90,7 +89,7 @@ export const NavBar = () => {
               to={isConnected ? "/dashboard" : "/"} 
               className="text-white font-bold text-xl"
             >
-             <img src={logo} className="w-40"/>
+              <img src={logo} className="w-40"/>
             </Link>
           </div>
           
@@ -99,7 +98,7 @@ export const NavBar = () => {
               <div className="relative">
                 <button
                   onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                  className="flex items-center space-x-2 px-4 py-2 text-sm text-white bg-white/5 hover:bg-white/10 rounded-lg transition-all border border-white/10"
+                  className="flex items-center space-x-2 px-4 py-2 text-sm text-black bg-[#ffffFF] hover:bg-[#4A90E2] rounded-lg transition-all"
                 >
                   <span>{formatAddress(tonConnectUI.account?.address)}</span>
                   <span className={`px-2 py-0.5 text-xs rounded-full ${getNetworkBadgeStyle()}`}>
@@ -111,27 +110,23 @@ export const NavBar = () => {
                 </button>
 
                 {isDropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-72 bg-[#14002A]/95 backdrop-blur-md rounded-lg shadow-xl border border-white/10">
-                    <div className="px-4 py-3 border-b border-white/10">
-                      <p className="text-sm text-white/60">Connected Wallet</p>
-                      <p className="text-sm font-medium text-white break-all">
+                  <div className="absolute right-0 mt-2 w-72 bg-white rounded-lg shadow-xl border border-[#4A90E2]">
+                    <div className="px-4 py-3 border-b border-[#F5F7FA]">
+                      <p className="text-sm text-[#2C3E50]/60">Connected Wallet</p>
+                      <p className="text-sm font-medium text-[#2C3E50] break-all">
                         {tonConnectUI.account?.address}
                       </p>
                     </div>
 
-
-
-
-                    
-                    <div className="px-4 py-3 border-b border-white/10">
-                      <p className="text-sm text-white/60 mb-2">Network</p>
+                    <div className="px-4 py-3 border-b border-[#F5F7FA]">
+                      <p className="text-sm text-[#2C3E50]/60 mb-2">Network</p>
                       <div className="flex gap-2">
                         <button
                           onClick={() => handleNetworkSwitch('mainnet')}
                           className={`flex-1 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
                             network === 'mainnet'
-                              ? 'bg-green-500/20 text-green-500'
-                              : 'bg-white/5 text-white/60 hover:bg-white/10'
+                              ? 'bg-[#4A90E2] text-white'
+                              : 'bg-[#F5F7FA] text-[#2C3E50] hover:bg-[#6BB9F0] hover:text-white'
                           }`}
                         >
                           Mainnet
@@ -140,25 +135,25 @@ export const NavBar = () => {
                           onClick={() => handleNetworkSwitch('testnet')}
                           className={`flex-1 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
                             network === 'testnet'
-                              ? 'bg-yellow-500/20 text-yellow-500'
-                              : 'bg-white/5 text-white/60 hover:bg-white/10'
+                              ? 'bg-[#4A90E2] text-white'
+                              : 'bg-[#F5F7FA] text-[#2C3E50] hover:bg-[#6BB9F0] hover:text-white'
                           }`}
                         >
                           Testnet
                         </button>
                       </div>
                     </div>
-                 
+
                     <button
                       onClick={handleSettings}
-                      className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-white/5 transition-all"
+                      className="w-full text-left px-4 py-2 text-sm text-[#2C3E50] hover:bg-[#F5F7FA] transition-all"
                     >
                       Settings
                     </button>
 
                     <button
                       onClick={handleDisconnect}
-                      className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-white/5 transition-all"
+                      className="w-full text-left px-4 py-2 text-sm text-[#2C3E50] hover:bg-[#F5F7FA] transition-all rounded-b-lg"
                     >
                       Disconnect Wallet
                     </button>
@@ -170,7 +165,7 @@ export const NavBar = () => {
             {!isConnected && (
               <button
                 onClick={handleTonConnect}
-                className="px-6 py-2 text-sm font-medium text-white bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all"
+                className="px-6 py-2 text-sm font-medium text-white bg-[#6BB9F0] hover:bg-[#4A90E2] rounded-lg transition-all"
               >
                 Connect Wallet
               </button>

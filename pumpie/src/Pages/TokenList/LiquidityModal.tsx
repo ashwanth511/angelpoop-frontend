@@ -10,7 +10,7 @@ const ModalOverlay = styled.div`
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.7);
+  background-color: rgba(44, 62, 80, 0.7);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -18,8 +18,8 @@ const ModalOverlay = styled.div`
 `;
 
 const ModalContent = styled.div`
-  background: #000000
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #FFFFFF;
+  border: 1px solid #4A90E2;
   border-radius: 12px;
   padding: 2rem;
   width: 90%;
@@ -33,7 +33,7 @@ const CloseButton = styled.button`
   right: 1rem;
   background: none;
   border: none;
-  color: rgba(255, 255, 255, 0.6);
+  color: #2C3E50;
   cursor: pointer;
   padding: 0.5rem;
   display: flex;
@@ -42,12 +42,12 @@ const CloseButton = styled.button`
   transition: color 0.2s;
 
   &:hover {
-    color: white;
+    color: #4A90E2;
   }
 `;
 
 const Title = styled.h2`
-  color: #ffffff;
+  color: #2C3E50;
   font-size: 1.5rem;
   font-weight: 600;
   margin-bottom: 1.5rem;
@@ -59,7 +59,7 @@ const InputWrapper = styled.div`
 
 const Label = styled.label`
   display: block;
-  color: rgba(255, 255, 255, 0.8);
+  color: #2C3E50;
   margin-bottom: 0.5rem;
   font-size: 0.875rem;
 `;
@@ -117,7 +117,7 @@ export const LiquidityModal: React.FC<LiquidityModalProps> = ({
               value={amount}
               onChange={e => setAmount(e.target.value)}
               placeholder="Enter amount..."
-              className="bg-[#2A2A2A] border-gray-700 text-white"
+              className="bg-[#F5F7FA] border-[#4A90E2] text-[#2C3E50] focus:border-[#6BB9F0]"
             />
           </InputWrapper>
 
@@ -126,13 +126,14 @@ export const LiquidityModal: React.FC<LiquidityModalProps> = ({
               type="button"
               variant="outline"
               onClick={onClose}
+              className="text-[#2C3E50] border-[#4A90E2] hover:bg-[#F5F7FA]"
             >
               Cancel
             </Button>
             <Button
               type="submit"
               disabled={!amount || parseFloat(amount) <= 0}
-              className="bg-[#00FFA3] text-black hover:bg-[#00DD8C]"
+              className="bg-[#4A90E2] text-white hover:bg-[#6BB9F0]"
             >
               Add Liquidity
             </Button>

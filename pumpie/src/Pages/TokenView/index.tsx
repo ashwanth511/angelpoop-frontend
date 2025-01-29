@@ -383,7 +383,7 @@ export const TokenView = () => {
     const chart = createChart(chartContainerRef.current, {
       layout: {
         background: { color: 'transparent' },
-        textColor: '#d1d5db',
+        textColor: '#2C3E50',
       },
       grid: {
         vertLines: { color: 'rgba(255, 255, 255, 0.1)' },
@@ -398,11 +398,11 @@ export const TokenView = () => {
     });
 
     const candlestickSeries = chart.addCandlestickSeries({
-      upColor: '#26a69a',
-      downColor: '#ef5350',
+      upColor: '#4A90E2',
+      downColor: '#EF5350',
       borderVisible: false,
-      wickUpColor: '#26a69a',
-      wickDownColor: '#ef5350',
+      wickUpColor: '#4A90E2',
+      wickDownColor: '#EF5350',
     });
 
     const generateSampleData = () => {
@@ -590,9 +590,9 @@ export const TokenView = () => {
   const renderChatSection = () => {
     if (isAgentLoading) {
       return (
-        <div className="bg-gray-800/50 rounded-lg p-4">
+        <div className="bg-[#F5F7FA] rounded-lg p-4">
           <div className="flex items-center justify-center h-[400px]">
-            <div className="text-black">Loading AI agent...</div>
+            <div className="text-[#2C3E50]">Loading AI agent...</div>
           </div>
         </div>
       );
@@ -600,7 +600,7 @@ export const TokenView = () => {
 
     if (agentError) {
       return (
-        <div className="bg-gray-800/50 rounded-lg p-4">
+        <div className="bg-[#F5F7FA] rounded-lg p-4">
           <div className="flex items-center justify-center h-[400px]">
             <div className="text-red-400">{agentError}</div>
           </div>
@@ -610,19 +610,19 @@ export const TokenView = () => {
 
     if (!agent) {
       return (
-        <div className="bg-gray-800/50 rounded-lg p-4">
+        <div className="bg-[#F5F7FA] rounded-lg p-4">
           <div className="flex items-center justify-center h-[400px]">
-            <div className="text-black">AI agent not available</div>
+            <div className="text-[#2C3E50]">AI agent not available</div>
           </div>
         </div>
       );
     }
     
     return (
-      <div className="bg-gray-800/50 rounded-lg p-4">
+      <div className="bg-[#F5F7FA] rounded-lg p-4">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-white">Chat with {token?.name || 'Token'} AI Agent</h2>
-          <span className="px-2 py-1 text-xs bg-gray-700 text-green-300 rounded-full">
+          <h2 className="text-lg font-semibold text-[#2C3E50]">Chat with {token?.name || 'Token'} AI Agent</h2>
+          <span className="px-2 py-1 text-xs bg-[#4A90E2] text-white rounded-full">
             Live
           </span>
         </div>
@@ -631,7 +631,7 @@ export const TokenView = () => {
           <div className="flex-1 overflow-y-auto space-y-4 mb-4">
             {messages.map((msg, index) => (
               <div key={index} className="flex flex-col">
-                <div className="text-xs text-gray-500 mb-1">
+                <div className="text-xs text-[#2C3E50] mb-1">
                   {msg.role === 'user' ? (
                     <span className="font-mono">{msg.address}</span>
                   ) : (
@@ -640,8 +640,8 @@ export const TokenView = () => {
                 </div>
                 <div className={`p-3 rounded-lg ${
                   msg.role === 'user' 
-                    ? 'bg-gray-700 ml-auto max-w-[80%]' 
-                    : 'bg-[#00FFA3] text-black mr-auto max-w-[80%]'
+                    ? 'bg-[#F5F7FA] ml-auto max-w-[80%]' 
+                    : 'bg-[#4A90E2] text-[#2C3E50] mr-auto max-w-[80%]'
                 }`}>
                   {msg.content}
                 </div>
@@ -656,13 +656,13 @@ export const TokenView = () => {
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               placeholder="Ask the AI agent anything..."
-              className="flex-1 px-4 py-2 rounded-lg bg-gray-700 border border-gray-600 focus:outline-none focus:border-[#00FFA3]"
+              className="flex-1 px-4 py-2 rounded-lg bg-[#F5F7FA] border border-[#2C3E50] focus:outline-none focus:border-[#4A90E2]"
               disabled={isLoading}
             />
             <button
               type="submit"
               disabled={isLoading || !message.trim()}
-              className="px-6 py-2 bg-[#00FFA3] text-black rounded-lg hover:bg-[#00DD8C] disabled:opacity-50"
+              className="px-6 py-2 bg-[#4A90E2] text-[#2C3E50] rounded-lg hover:bg-[#6BB9F0] disabled:opacity-50"
             >
               {isLoading ? 'Sending...' : 'Send'}
             </button>
@@ -815,9 +815,9 @@ export const TokenView = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black">
+      <div className="min-h-screen bg-[#FFFFFF]">
         <div className="flex items-center justify-center h-[calc(100vh-64px)]">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2C3E50]"></div>
         </div>
       </div>
     );
@@ -826,39 +826,39 @@ export const TokenView = () => {
   if (!token) return null;
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-[#FFFFFF]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex items-center mb-8">
           <Button variant="outline" onClick={() => navigate('/tokens')} className="mr-4">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back
           </Button>
-          <div className="flex items-center">
+          <div className="flex items-center border border-[#4A90E2] rounded-lg p-4">
             <img src={token.imageUrl} alt={token.name} className="w-10 h-10 rounded-full mr-3" />
             <div>
-              <h1 className="text-2xl font-bold text-black">{token.name}</h1>
+              <h1 className="text-2xl font-bold text-[#2C3E50]">{token.name}</h1>
               <div className="flex items-center space-x-2">
-                <span className="text-black">{token.symbol}</span>
-                <span className="px-2 py-0.5 text-xs bg-gray-800 text-white rounded-full">
+                <span className="text-[#2C3E50]">{token.symbol}</span>
+                <span className="px-2 py-0.5 text-xs bg-[#4A90E2] text-white rounded-full">
                   {token.agentType}
                 </span>
-                <span className="px-2 py-0.5 text-xs bg-black text-white rounded-full">
+                <span className="px-2 py-0.5 text-xs bg-[#2C3E50] text-white rounded-full">
                   {token.creatorAddress}
                 </span>
                 <span className={`px-2 py-0.5 text-xs rounded-full ${
                   isInPool 
-                    ? 'bg-green-800 text-green-200' 
-                    : 'bg-red-800 text-red-200'
+                    ? 'bg-[#4A90E2] text-white' 
+                    : 'bg-[#F5F7FA] text-[#2C3E50]'
                 }`}>
                   {isInPool ? 'In Pool' : 'Not in Pool'}
                 </span>
                 {token.networkType === 'testnet' && (
-                  <span className="px-2 py-0.5 text-xs bg-red-800 text-white rounded-full">
+                  <span className="px-2 py-0.5 text-xs bg-[#F5F7FA] text-[#2C3E50] rounded-full">
                     Testnet
                   </span>
                 )}
                 {token.networkType === 'mainnet' && (
-                  <span className="px-2 py-0.5 text-xs bg-green-800 text-white rounded-full">
+                  <span className="px-2 py-0.5 text-xs bg-[#4A90E2] text-white rounded-full">
                     Mainnet
                   </span>
                 )}
@@ -867,19 +867,19 @@ export const TokenView = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 ">
           {/* Left Column - Chart and Stats */}
           <div className="lg:col-span-2 space-y-6">
             {/* Token Price and Stats */}
-            <div className="bg-gray-800/50 rounded-lg p-4 space-y-4">
+            <div className="bg-[#F5F7FA] rounded-lg p-4 space-y-4  border border-[#4A90E2] rounded-lg p-4">
               <div className="flex justify-between items-center">
                 <div>
-                  <p className="text-sm text-black">Price</p>
-                  <p className="text-2xl font-bold">${token.price?.toFixed(4) || '0.00'}</p>
+                  <p className="text-sm text-[#2C3E50]">Price</p>
+                  <p className="text-2xl font-bold text-[#2C3E50]">${token.price?.toFixed(4) || '0.00'}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm text-black">24h Change</p>
-                  <p className={`text-lg font-medium ${(token.priceChange24h ?? 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  <p className="text-sm text-[#2C3E50]">24h Change</p>
+                  <p className={`text-lg font-medium ${(token.priceChange24h ?? 0) >= 0 ? 'text-[#4A90E2]' : 'text-red-400'}`}>
                     {(token.priceChange24h ?? 0) >= 0 ? '+' : ''}{(token.priceChange24h ?? 0).toFixed(2)}%
                   </p>
                 </div>
@@ -888,32 +888,31 @@ export const TokenView = () => {
               {/* Bonding Curve Progress */}
               <div className="space-y-2 pt-2">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-black">Bonding Curve Progress</span>
+                  <span className="text-sm text-[#2C3E50]">Bonding Curve Progress</span>
                   <div className="flex items-center gap-2">
-                    <span className="text-lg font-medium text-white">{token.liquidityProgress?.toFixed(1) || '0'}%</span>
+                    <span className="text-lg font-medium text-[#ffffff]">{token.liquidityProgress?.toFixed(1) || '0'}%</span>
                     {token.inPool && (
-                      <span className="px-2 py-0.5 text-xs bg-green-500/20 text-green-400 rounded-full">
+                      <span className="px-2 py-0.5 text-xs bg-[#ffffff] text-white rounded-full">
                         In Pool
                       </span>
                     )}
                   </div>
                 </div>
-              <div className="w-full h-4 bg-black rounded-full overflow-hidden">
+              <div className="w-full h-4 bg-[#F5F7FA] rounded-full overflow-hidden">
                 <div 
-                  className="h-full bg-gradient-to-r from-[#00FFA3] to-[#00DD8C] transition-all duration-500 ease-out"
+                  className="h-full bg-gradient-to-r from-[#4A90E2] to-[#6BB9F0] transition-all duration-500 ease-out"
                   style={{ 
                     width: `${Math.min(100, token.liquidityProgress || 0)}%`,
-               
                   }}
                 />
               </div>
-              <div className="flex justify-between text-xs text-black pt-1">
+              <div className="flex justify-between text-xs text-[#2C3E50] pt-1">
                 <div>
-                  <span className="block text-black">Start</span>
+                  <span className="block text-[#2C3E50]">Start</span>
                   <span>0 TON</span>
                 </div>
                 <div className="text-right">
-                  <span className="block text-black">Target</span>
+                  <span className="block text-[#2C3E50]">Target</span>
                   <span>10,000 TON</span>
                 </div>
               </div>
@@ -922,18 +921,18 @@ export const TokenView = () => {
             {/* Stats Grid */}
             <div className="grid grid-cols-2 gap-4 pt-2">
               <div>
-                <p className="text-sm text-black">Market Cap</p>
-                <p className="text-lg font-medium">${token.marketCap?.toLocaleString() || '0'}</p>
+                <p className="text-sm text-[#2C3E50]">Market Cap</p>
+                <p className="text-lg font-medium text-[#2C3E50]">${token.marketCap?.toLocaleString() || '0'}</p>
               </div>
               <div>
-                <p className="text-sm text-black">Volume (24h)</p>
-                <p className="text-lg font-medium">${token.volume24h?.toLocaleString() || '0'}</p>
+                <p className="text-sm text-[#2C3E50]">Volume (24h)</p>
+                <p className="text-lg font-medium text-[#2C3E50]">${token.volume24h?.toLocaleString() || '0'}</p>
               </div>
             </div>
           </div>
 
           {/* Chart */}
-          <div className="bg-gray-800/50 rounded-lg p-4">
+          <div className="bg-[#F5F7FA] rounded-lg p-4  border border-[#4A90E2] rounded-lg p-4">
             <div className="flex justify-between items-center mb-4">
               <div className="flex space-x-2">
                 {['15m', '1h', '4h', '1d'].map((interval) => (
@@ -942,8 +941,8 @@ export const TokenView = () => {
                     onClick={() => setSelectedInterval(interval as any)}
                     className={`px-3 py-1 text-sm rounded ${
                       selectedInterval === interval
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-gray-700 text-black hover:bg-gray-600'
+                        ? 'bg-[#4A90E2] text-white'
+                        : 'bg-[#F5F7FA] text-[#2C3E50] hover:bg-[#6BB9F0] hover:text-white'
                     }`}
                   >
                     {interval}
@@ -955,7 +954,7 @@ export const TokenView = () => {
           </div>
 
           {/* Tabs */}
-          <div className="bg-gray-800/50 rounded-lg overflow-hidden">
+          <div className="bg-[#F5F7FA]  border border-[#4A90E2] rounded-lg p-4 rounded-lg overflow-hidden">
             {renderChatSection()}
           
           </div>
@@ -963,51 +962,51 @@ export const TokenView = () => {
           </div>
 
           {/* Right Column - Trading Interface and Chat */}
-          <div className="space-y-6">
+          <div className="space-y-6 ">
             {/* Trading Interface */}
-            <div className="bg-gray-800/50 rounded-lg p-6">
-              <h2 className="text-xl font-semibold text-white mb-6">Trade {token.symbol}</h2>
+            <div className="bg-[#F5F7FA] rounded-lg p-6 border border-[#4A90E2] rounded-lg p-4">
+              <h2 className="text-xl font-semibold text-[#2C3E50] mb-6">Trade {token.symbol}</h2>
               
               {!tonConnectUI.connected ? (
                 <Button 
                   onClick={() => tonConnectUI.connectWallet()} 
-                  className="w-full bg-blue-500 hover:bg-blue-600"
+                  className="w-full bg-[#4A90E2] hover:bg-[#6BB9F0] text-[#2C3E50]"
                 >
                   Connect Wallet
                 </Button>
               ) : (
                 <>
                   {/* Buy/Sell Tabs */}
-                  <div className="flex space-x-1 mb-4 bg-gray-900/50 p-1 rounded-lg">
+                  <div className="flex space-x-1 mb-4 bg-[#F5F7FA] p-1 rounded-lg">
                     <button
                       onClick={() => setTradeTab('buy')}
                       className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors ${
                         tradeTab === 'buy'
-                          ? 'bg-blue-500 text-white'
-                          : 'text-black hover:text-white'
+                          ? 'bg-[#4A90E2] text-white'
+                          : 'text-[#2C3E50] hover:text-[#4A90E2]'
                       }`}
                     >
-                      Buy Dude
+                      Buy
                     </button>
                     <button
                       onClick={() => setTradeTab('sell')}
                       className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors ${
                         tradeTab === 'sell'
-                          ? 'bg-red-500 text-white'
-                          : 'text-black hover:text-white'
+                          ? 'bg-[#4A90E2] text-white'
+                          : 'text-[#2C3E50] hover:text-[#4A90E2]'
                       }`}
                     >
-                      Sell Bro
+                      Sell
                     </button>
                   </div>
 
                   <div className="space-y-4">
-                    <div className="bg-gray-900/50 rounded-lg p-4">
+                    <div className="bg-[#F5F7FA] rounded-lg p-4">
                       <div className="flex justify-between mb-2">
-                        <span className="text-black">
+                        <span className="text-[#2C3E50]">
                           {tradeTab === 'buy' ? 'Pay (TON)' : `Pay (${token?.symbol})`}
                         </span>
-                        <span className="text-black">
+                        <span className="text-[#2C3E50]">
                           Balance: {tradeTab === 'buy' 
                             ? `${tonBalance} TON` 
                             : `${tokenBalance} ${token?.symbol}`
@@ -1020,30 +1019,30 @@ export const TokenView = () => {
                           value={fromAmount}
                           onChange={(e) => setFromAmount(e.target.value)}
                           placeholder="0.0"
-                          className="bg-transparent text-xl text-white outline-none flex-1"
+                          className="bg-transparent text-xl text-[#2C3E50] outline-none flex-1"
                         />
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center ">
                           {tradeTab === 'buy' ? (
                             <>
-                          <img src="https://ton.org/download/ton_logo_light_background.png" alt="ton" className="w-6 h-6 rounded-full" />
-                          <span className="text-white">TON</span>
-                          </>
+                              <img src="https://ton.org/download/ton_logo_light_background.png" alt="ton" className="w-6 h-6 rounded-full" />
+                              <span className="text-[#2C3E50]">TON</span>
+                            </>
                           ) : (
                             <>
                               <img src={token?.imageUrl} alt={token?.symbol} className="w-6 h-6 rounded-full" />
-                              <span className="text-white">{token?.symbol}</span>
+                              <span className="text-[#2C3E50]">{token?.symbol}</span>
                             </>
                           )}
                         </div>
                       </div>
                     </div>
 
-                    <div className="bg-gray-900/50 rounded-lg p-4">
+                    <div className="bg-[#F5F7FA] rounded-lg p-4">
                       <div className="flex justify-between mb-2">
-                        <span className="text-black">
+                        <span className="text-[#2C3E50]">
                           {tradeTab === 'buy' ? `Receive (${token?.symbol})` : 'Receive (TON)'}
                         </span>
-                        <span className="text-black">
+                        <span className="text-[#2C3E50]">
                           Price: 1 {token?.symbol} = {token?.price?.toFixed(4)} TON
                         </span>
                       </div>
@@ -1054,18 +1053,18 @@ export const TokenView = () => {
                           placeholder="0.0"
                           value={(parseFloat(fromAmount || '0') * (currentPrice || 0)).toFixed(4)}
                           disabled
-                          className="bg-transparent text-xl text-white outline-none flex-1"
+                          className="bg-transparent text-xl text-[#2C3E50] outline-none flex-1"
                         />
-                        <div className="flex items-center gap-2 ml-2 px-4 py-2 rounded-lg bg-gray-700">
+                        <div className="flex items-center gap-2 ml-2 px-4 py-2 rounded-lg bg-[#F5F7FA]">
                           {tradeTab === 'buy' ? (
                             <>
-                              <img src={token?.imageUrl} alt={token?.symbol} className="w-6 h-6 rounded-full" />
-                              <span className="text-white">{token?.symbol}</span>
+                              <img src={token?.imageUrl} alt={token?.symbol} className="w-6 h-6 -ml-6 rounded-full" />
+                              <span className="text-[#2C3E50]">{token?.symbol}</span>
                             </>
                           ) : (
                             <>
-                            <img src="https://ton.org/download/ton_logo_light_background.png" alt="ton" className="w-6 h-6 rounded-full" />
-                            <span className="text-white">TON</span>
+                              <img src="https://ton.org/download/ton_logo_light_background.png" alt="ton" className="w-6 h-6 -ml-5 rounded-full" />
+                              <span className="text-[#2C3E50]">TON</span>
                             </>
                           )}
                         </div>
@@ -1073,32 +1072,32 @@ export const TokenView = () => {
                     </div>
 
                     <div className="mt-4 space-y-2">
-                      <div className="flex justify-between text-sm text-black">
+                      <div className="flex justify-between text-sm text-[#2C3E50]">
                         <span>Pool Liquidity</span>
                         <div className="text-right">
                           <div>{formatCurrency(Number(fromNano(tokenSupply || '0')))}</div>
-                          <div className="text-xs text-gray-500">
+                          <div className="text-xs text-[#2C3E50]">
                             {formatCurrency(Number(fromNano(tokenSupply || '0')) * tonPrice, 'USD')}
                           </div>
                         </div>
                       </div>
-                      <div className="flex justify-between text-sm text-black">
+                      <div className="flex justify-between text-sm text-[#2C3E50]">
                         <span>Price Impact</span>
                         <span>{((parseFloat(fromAmount || '0') / (parseFloat(tokenSupply || '0') + parseFloat(fromAmount || '0'))) * 100).toFixed(2)}%</span>
                       </div>
 
                       {/* Liquidity Progress Bar */}
                       <div className="mt-4">
-                        <div className="flex justify-between text-sm text-black mb-1">
+                        <div className="flex justify-between text-sm text-[#2C3E50] mb-1">
                           <span>Progress to DEX Migration</span>
                           <div className="text-right">
                             <div>{formatCurrency(liquidityProgress)}</div>
-                            <div className="text-xs text-gray-500">Target: {formatCurrency(10000)} ({formatCurrency(10000 * tonPrice, 'USD')})</div>
+                            <div className="text-xs text-[#2C3E50]">Target: {formatCurrency(10000)} ({formatCurrency(10000 * tonPrice, 'USD')})</div>
                           </div>
                         </div>
-                        <div className="w-full bg-gray-700 rounded-full h-2.5">
+                        <div className="w-full bg-[#F5F7FA] rounded-full h-2.5">
                           <div 
-                            className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
+                            className="bg-[#4A90E2] h-2.5 rounded-full transition-all duration-300"
                             style={{ width: `${Math.min(100, (liquidityProgress / 10000) * 100)}%` }}
                           />
                         </div>
@@ -1110,8 +1109,8 @@ export const TokenView = () => {
                       disabled={loading || !fromAmount || !tonConnectUI.connected}
                       className={`w-full ${
                         tradeTab === 'buy' 
-                          ? 'bg-blue-500 hover:bg-blue-600' 
-                          : 'bg-red-500 hover:bg-red-600'
+                          ? 'bg-[#4A90E2] hover:bg-[#6BB9F0]' 
+                          : 'bg-[#4A90E2] hover:bg-[#6BB9F0]'
                       }`}
                     >
                       {!tonConnectUI.connected 
@@ -1127,11 +1126,11 @@ export const TokenView = () => {
 
             {/* Twitter Connect Section - Only visible to creator */}
             {isCreator && (
-              <div className="mt-6 p-4 bg-gray-800/50 rounded-lg border border-gray-700">
+              <div className="mt-6 p-4 bg-[#F5F7FA] rounded-lg border border-[#2C3E50]">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-lg font-semibold text-white">Twitter Integration</h3>
-                    <p className="text-sm text-black">
+                    <h3 className="text-lg font-semibold text-[#2C3E50]">Twitter Integration</h3>
+                    <p className="text-sm text-[#2C3E50]">
                       {twitterConnected 
                         ? 'Your token agent is connected to Twitter and will post regular updates'
                         : 'Connect Twitter to enable your token agent to post automatic updates'}
@@ -1141,8 +1140,8 @@ export const TokenView = () => {
                     onClick={() => setShowTwitterModal(true)}
                     className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
                       twitterConnected
-                        ? 'bg-gray-700 text-black'
-                        : 'bg-[#1DA1F2] hover:bg-[#1a8cd8] text-white shadow-lg hover:shadow-[#1DA1F2]/20'
+                        ? 'bg-[#F5F7FA] text-[#2C3E50]'
+                        : 'bg-[#1DA1F2] hover:bg-[#1a8cd8] text-[#2C3E50]'
                     }`}
                     disabled={twitterConnected}
                   >
@@ -1164,22 +1163,22 @@ export const TokenView = () => {
 
   {/* Twitter Connect Modal */}
   {showTwitterModal && (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-gray-900 rounded-xl p-6 max-w-md w-full mx-4">
-        <h2 className="text-xl font-bold text-white mb-4">Connect Twitter Account</h2>
-        <p className="text-black mb-6">
+    <div className="fixed inset-0 bg-[#2C3E50]/50 flex items-center justify-center z-50">
+      <div className="bg-[#F5F7FA] rounded-xl p-6 max-w-md w-full mx-4">
+        <h2 className="text-xl font-bold text-[#2C3E50] mb-4">Connect Twitter Account</h2>
+        <p className="text-[#2C3E50] mb-6">
           Your token agent will be able to post regular updates about your token on Twitter. You can customize the posting frequency later.
         </p>
         <div className="flex justify-end space-x-4">
           <button
             onClick={() => setShowTwitterModal(false)}
-            className="px-4 py-2 rounded-lg font-medium text-black hover:text-white"
+            className="px-4 py-2 rounded-lg font-medium text-[#2C3E50] hover:text-[#4A90E2]"
           >
             Cancel
           </button>
           <button
             onClick={handleTwitterConnect}
-            className="px-4 py-2 rounded-lg font-medium bg-[#1DA1F2] hover:bg-[#1a8cd8] text-white"
+            className="px-4 py-2 rounded-lg font-medium bg-[#1DA1F2] hover:bg-[#1a8cd8] text-[#2C3E50]"
           >
             Connect Twitter
           </button>
