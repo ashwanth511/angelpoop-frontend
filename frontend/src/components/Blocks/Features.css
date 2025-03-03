@@ -1,0 +1,176 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@keyframes float {
+  0%, 100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate(0, -20px) rotate(5deg);
+  }
+}
+
+:root {
+  --background: 0 0% 100%;
+  --foreground: 222.2 84% 4.9%;
+  --card: 0 0% 100%;
+  --card-foreground: 222.2 84% 4.9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222.2 84% 4.9%;
+  --primary: 248 90% 66%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 210 40% 96.1%;
+  --secondary-foreground: 222.2 47.4% 11.2%;
+  --muted: 210 40% 96.1%;
+  --muted-foreground: 215.4 16.3% 46.9%;
+  --accent: 210 40% 96.1%;
+  --accent-foreground: 222.2 47.4% 11.2%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 214.3 31.8% 91.4%;
+  --input: 214.3 31.8% 91.4%;
+  --ring: 222.2 84% 4.9%;
+  --radius: 0.5rem;
+}
+
+.font-mono {
+  font-family: var(--font-space-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+.grid-background {
+  background-size: 40px 40px;
+  background-image: 
+    linear-gradient(to right, rgba(0, 0, 0, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.05) 1px, transparent 1px);
+  opacity: 0.5;
+}
+
+@keyframes float {
+    0%, 100% {
+      transform: translate(0, 0) rotate(0deg);
+    }
+    50% {
+      transform: translate(0, -20px) rotate(5deg);
+    }
+  }
+  
+  @keyframes spin-slow {
+    from {
+      transform: rotateX(0) rotateY(0);
+    }
+    to {
+      transform: rotateX(360deg) rotateY(360deg);
+    }
+  }
+  
+  .animate-spin-slow {
+    animation: spin-slow 12s linear infinite;
+  }
+  
+  .transform-style-preserve-3d {
+    transform-style: preserve-3d;
+  }
+  
+  .translate-z-6 {
+    transform: translateZ(24px);
+  }
+  
+  .rotate-y-90 {
+    transform: rotateY(90deg);
+  }
+  
+  .rotate-x-90 {
+    transform: rotateX(90deg);
+  }
+
+/* Space Particles */
+.space-particles {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.particle {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  background: white;
+  border-radius: 50%;
+  box-shadow: 0 0 10px 2px rgba(255, 255, 255, 0.8);
+  animation: particle-float linear infinite;
+}
+
+.particle-0 { animation: particle-float-right 8s linear infinite; }
+.particle-1 { animation: particle-float-left 12s linear infinite; }
+.particle-2 { animation: particle-float-diagonal 10s linear infinite; }
+.particle-3 { animation: particle-pulse 4s ease-in-out infinite; }
+
+@keyframes particle-float-right {
+  0% { transform: translateX(-100%) scale(1); opacity: 0; }
+  50% { opacity: 1; }
+  100% { transform: translateX(200%) scale(0.2); opacity: 0; }
+}
+
+@keyframes particle-float-left {
+  0% { transform: translateX(200%) scale(0.2); opacity: 0; }
+  50% { opacity: 1; }
+  100% { transform: translateX(-100%) scale(1); opacity: 0; }
+}
+
+@keyframes particle-float-diagonal {
+  0% { transform: translate(-100%, -100%) scale(0.5); opacity: 0; }
+  50% { opacity: 1; }
+  100% { transform: translate(200%, 200%) scale(1); opacity: 0; }
+}
+
+@keyframes particle-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.2; }
+  50% { transform: scale(1.5); opacity: 1; }
+}
+
+/* Comets */
+.comet {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: white;
+  border-radius: 50%;
+  animation: comet-move 8s linear infinite;
+}
+
+.comet::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 0;
+  width: 50px;
+  height: 1px;
+  background: linear-gradient(to left, white, transparent);
+  transform: translateY(-50%);
+}
+
+@keyframes comet-move {
+  0% { transform: translateX(-100px) rotate(-45deg); opacity: 0; }
+  20% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { transform: translateX(calc(100vw + 100px)) rotate(-45deg); opacity: 0; }
+}
+
+/* Decorative Elements */
+.leaf {
+  position: absolute;
+  bottom: -10px;
+  width: 20px;
+  height: 40px;
+  background: linear-gradient(45deg, #4CAF50, #81C784);
+  clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+  animation: leaf-sway 3s ease-in-out infinite;
+  transform-origin: bottom center;
+}
+
+@keyframes leaf-sway {
+  0%, 100% { transform: rotate(-5deg); }
+  50% { transform: rotate(5deg); }
+}

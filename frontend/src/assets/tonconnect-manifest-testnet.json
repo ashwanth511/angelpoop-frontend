@@ -1,0 +1,41 @@
+{
+  "url": "http://localhost:5173",
+  "name": "Angelpoop",
+  "iconUrl": "/logo.svg",
+  "termsOfUseUrl": "http://localhost:5173/terms",
+  "privacyPolicyUrl": "http://localhost:5173/privacy",
+  "testnet": true,
+  "about": "Angelpoop - AI-Powered Decentralized Trading Platform on TON",
+  "version": "1.0.0",
+  "items": [
+    {
+      "name": "ton_addr",
+      "description": "Connect your TON wallet to trade tokens and provide liquidity"
+    },
+    {
+      "name": "ton_proof",
+      "description": "Verify your wallet ownership"
+    }
+  ],
+  "permissions": [
+    {
+      "name": "ton_send"
+    }
+  ],
+  "platforms": [
+    "web"
+  ],
+  "redirectUrl": "http://localhost:5173",
+  "image": {
+    "dark": "/logo-dark.svg",
+    "light": "/logo.svg"
+  },
+  "colors": {
+    "primary": "#3B82F6",
+    "secondary": "#1E40AF",
+    "background": {
+      "dark": "#1F2937",
+      "light": "#F3F4F6"
+    }
+  }
+}
