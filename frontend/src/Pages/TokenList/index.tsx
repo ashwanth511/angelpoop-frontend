@@ -210,39 +210,9 @@ export const TokenList: React.FC = () => {
     console.log('User Address:', userAddress);
     console.log('Creator Address:', creatorAddress);
     
-    // Only show actions if user is token creator
-    if (userAddress !== creatorAddress) {
-      return null;
-    }
+ 
 
-    if (token.inPool) {
-      return (
-        <Button
-          onClick={(e) => {
-            e.stopPropagation();
-            setSelectedToken(token);
-            setIsLiquidityModalOpen(true);
-          }}
-          disabled={loading}
-          className="bg-[#4A90E2] hover:bg-[#6BB9F0] text-white px-4 py-2 rounded-lg"
-        >
-          Add Liquidity
-        </Button>
-      );
-    }
-
-    return (
-      <Button
-        onClick={(e) => {
-          e.stopPropagation();
-          handleAddToPool(token);
-        }}
-        disabled={loading}
-        className="bg-[#4A90E2] hover:bg-[#6BB9F0] text-white px-4 py-2 rounded-lg"
-      >
-        {loading ? 'Adding to Pool...' : 'Add to Pool'}
-      </Button>
-    );
+ 
   };
 
   const renderTokenCard = (token: TokenData) => (
@@ -265,14 +235,13 @@ export const TokenList: React.FC = () => {
           </div>
         </div>
         <div className="text-right">
-          <p className="text-lg text-[#2C3E50]">${token.price?.toFixed(4) || '0.00'}</p>
-          <p className="text-sm text-[#2C3E50]">
-            {token.inPool ? `Liquidity: ${token.liquidityProgress?.toFixed(1) || '0'}%` : 'Not in Pool'}
-          </p>
+          <p className="text-lg text-[#2C3E50]">${token.price?.toFixed(3)|| '0.00'}TON</p>
+        
         </div>
       </div>
 
       {/* Bonding Curve Progress */}
+      <>
       <div className="mt-4 space-y-2">
         <div className="flex justify-between text-sm">
           <span className="text-[#2C3E50]">Bonding Curve Progress</span>
@@ -282,8 +251,8 @@ export const TokenList: React.FC = () => {
           <div 
             className="h-full bg-gradient-to-r from-[#4A90E2] to-[#6BB9F0] transition-all duration-500 ease-out"
             style={{ 
-              width: `${Math.min(100, token.liquidityProgress || 0)}%`,
-              boxShadow: token.liquidityProgress > 0 ? '0 0 20px rgba(74, 144, 226, 0.3)' : 'none'
+          
+              boxShadow: token.liquidityProgress > 0 ? '0 0 10px rgba(74, 144, 226, 0.3)' : 'none'
             }}
           />
         </div>
@@ -292,7 +261,7 @@ export const TokenList: React.FC = () => {
           <span>10,000 TON</span>
         </div>
       </div>
-
+      </>
       {/* Token Details */}
       <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
         <div>

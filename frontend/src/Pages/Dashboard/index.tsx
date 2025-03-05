@@ -129,9 +129,9 @@ export const Dashboard = () => {
           <p className="text-sm text-[#2C3E50] mt-1">{token.agentType}</p>
         </div>
         <div className="text-right">
-          <p className="text-lg text-[#2C3E50]">{token.price !== undefined && token.price > 0 ? `$${token.price.toFixed(4)}` : 'N/A'}</p>
-          <p className="text-sm text-[#2C3E50]">
-            {token.inPool ? `In Pool` : 'Not in Pool'}
+          <p className="text-lg text-[#2C3E50]">{token.price !== undefined && token.price > 0 ? `$${token.price.toFixed(4)}` : '0.001'}<span className="text-blue-700"> TON</span></p>
+          <p className="text-sm text-blue-700">
+            {token.inPool ? `In Pool` : 'Ready To Buy'}
           </p>
         </div>
       </div>
@@ -175,16 +175,7 @@ export const Dashboard = () => {
           >
             Listed Tokens
           </button>
-          <button
-            className={`px-4 py-2 text-sm font-medium ${
-              activeTab === 'pool'
-                ? 'text-[#4A90E2] border-b-2 border-[#4A90E2]'
-                : 'text-[#2C3E50] hover:text-[#6BB9F0]'
-            }`}
-            onClick={() => setActiveTab('pool')}
-          >
-            In Pool
-          </button>
+        
         </div>
 
         {/* Tab Content */}

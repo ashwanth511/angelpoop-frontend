@@ -8,7 +8,7 @@ import { createChart, UTCTimestamp } from 'lightweight-charts';
 import { ArrowLeft } from 'lucide-react';
 import { useTonConnectUI } from '@tonconnect/ui-react';
 import { AIAgent } from '@/services/aiAgent';
-
+import { getTonClient } from '../../services/ton-client';
 import axios from 'axios';
 import { BASE_URL } from '@/config';
 import { Address ,toNano,fromNano} from '@ton/core';
@@ -17,6 +17,9 @@ import { TonClient } from '@ton/ton';
 import { PoolCore } from '@/wrappers/tact_PoolCore';
 import TonConnectSender from '@/hooks/TonConnectSender';
 import { JettonWalletImp } from '@/wrappers/tact_JettonWalletImp';
+import { JettonFactory } from '@/wrappers/tact_JettonFactory';
+import { JettonMasterTemplate } from '@/wrappers/tact_JettonMasterTemplate';
+import { JettonWalletTemplate } from '@/wrappers/tact_JettonWalletTemplate';
 
 interface Token {
   id: string;
@@ -90,15 +93,19 @@ export const TokenView = () => {
   const [twitterConnected, setTwitterConnected] = useState(false);
   const [showTwitterModal, setShowTwitterModal] = useState(false);
 
+  // Add this constant at the top
+  const TOKEN_PRICE = 0.001; // Price in TON
+
+  // Add this constant
+  const TRANSACTION_FEE = 0.6; // 0.6 TON transaction fee
+
   const calculatePrice = (supply: bigint, amount: bigint): number => {
     // Get initial price from token or default to 0
     const initialPrice = token?.price || 0;
     
     // Convert supply to TON units
     const supplyInTon = Number(fromNano(supply));
-    
-    // Simple linear price calculation based on liquidity
-    // Price = Initial Price + (Liquidity in TON * 0.1)
+ 
     // This means each TON of liquidity adds 0.1 TON to the price
     const priceIncrease = supplyInTon * 0.1;
     const finalPrice = initialPrice + priceIncrease;
@@ -182,90 +189,42 @@ export const TokenView = () => {
         network: token.networkType
       });
 
-      // Try both methods to get balance
+      const endpoint = await getHttpEndpoint({
+        network: token.networkType === 'testnet' ? "testnet" : "mainnet",
+      });
+      console.log('Using endpoint:', endpoint);
+
+      const client = new TonClient({ endpoint });
+      const masterAddress = Address.parse(token.tokenAddress);
+      console.log('Jetton master address:', masterAddress.toString());
+
+      // Get jetton wallet address for the user
+      const jettonMaster = await JettonMasterTemplate.fromAddress(masterAddress);
+      const jettonWalletAddress = await jettonMaster.getGetWalletAddress(client.provider(masterAddress), Address.parse(ownerAddress));
+      console.log('Jetton wallet address:', jettonWalletAddress.toString());
+
+      // Get balance from wallet
       try {
-        // Method 1: Using TonCenter API
-        const baseUrl = token?.networkType === 'testnet' 
-          ? 'https://testnet.toncenter.com/api/v2'
-          : 'https://toncenter.com/api/v2';
-
-        const tokenDataResponse = await fetch(
-          `${baseUrl}/getTokenData?address=${token.tokenAddress}`
-        );
-        const tokenData = await tokenDataResponse.json();
-        console.log('Token data from API:', tokenData);
-
-        if (tokenData.ok) {
-          const decimals = tokenData.result.decimals || 9;
-          console.log('Token decimals:', decimals);
-        }
-
-        // Get wallet address for this token
-        const walletResponse = await fetch(
-          `${baseUrl}/getWalletAddress?account=${ownerAddress}&token=${token.tokenAddress}`
-        );
-        const walletData = await walletResponse.json();
-        console.log('Wallet data from API:', walletData);
-
-        if (walletData.ok) {
-          // Get balance
-          const balanceResponse = await fetch(
-            `${baseUrl}/getAccountState?account=${walletData.result}`
-          );
-          const balanceData = await balanceResponse.json();
-          console.log('Balance data from API:', balanceData);
-
-          if (balanceData.ok) {
-            const balance = balanceData.result.balance;
-            const formattedBalance = fromNano(balance);
-            console.log('API Balance:', formattedBalance);
-            setTokenBalance(formattedBalance);
-            return;
-          }
-        }
-      } catch (apiError) {
-        console.warn('Failed to get balance from API:', apiError);
-      }
-
-      // Method 2: Using Contract Methods
-      try {
-        const endpoint = await getHttpEndpoint({
-          network: token.networkType === 'testnet' ? "testnet" : "mainnet",
-        });
-        console.log('Using endpoint:', endpoint);
-
-        const client = new TonClient({ endpoint });
-        const masterAddress = Address.parse(token.tokenAddress);
-        console.log('Jetton master address:', masterAddress.toString());
-
-        // Get jetton wallet address
-        const jettonMaster = client.open(PoolCore.fromAddress(masterAddress));
-        const jettonWalletAddress = await jettonMaster.getGetJettonAddress(Address.parse(ownerAddress));
-        console.log('Jetton wallet address:', jettonWalletAddress.toString());
-
-        // Get balance from wallet
-        const jettonWallet = client.open(JettonWalletImp.fromAddress(jettonWalletAddress));
-        const walletData = await jettonWallet.getGetWalletData();
+        const jettonWallet = await JettonWalletTemplate.fromAddress(jettonWalletAddress);
+        const walletData = await jettonWallet.getGetWalletData(client.provider(jettonWalletAddress));
         const formattedBalance = fromNano(walletData.balance);
         console.log('Contract Balance:', {
           raw: walletData.balance.toString(),
           formatted: formattedBalance
         });
-
         setTokenBalance(formattedBalance);
-        return;
-      } catch (contractError) {
-        console.warn('Failed to get balance from contract:', contractError);
-        // If wallet doesn't exist yet, balance is 0
-        if ((contractError as Error).message?.includes('not exist')) {
-          console.log('Wallet does not exist yet, setting balance to 0');
-          setTokenBalance('0');
-          return;
-        }
-        throw contractError;
+      } catch (error) {
+        console.log('Wallet not deployed yet or error fetching balance:', error);
+        setTokenBalance('0');
       }
     } catch (error) {
       console.error('Error fetching token balance:', error);
+      // If wallet doesn't exist yet, balance is 0
+      if ((error as Error).message?.includes('not exist')) {
+        console.log('Wallet does not exist yet, setting balance to 0');
+        setTokenBalance('0');
+        return;
+      }
       // Set balance to 0 on error
       setTokenBalance('0');
       
@@ -499,40 +458,35 @@ export const TokenView = () => {
     }
   };
 
-  const BuyJetton = async () => {
+  const handleBuy = async () => {
     if (!tonConnectUI.connected) {
       toast.error('Please connect your wallet first');
       return;
     }
 
     try {
+      const client = getTonClient();
       setLoading(true);
       const sender = new TonConnectSender(tonConnectUI.connector);
+      const factoryAddress = Address.parse('EQDECvJ2XNXLC54lOtN6uH2QwxMHxRVHlSxAlZSJwYPfHBho');
+      const factoryContract = await JettonFactory.fromAddress(factoryAddress);
 
-      const endpoint = await getHttpEndpoint({
-        network: token?.networkType === 'testnet' ? "testnet" : "mainnet",
-      });
+      const totalAmount = parseFloat(fromAmount) + TRANSACTION_FEE;
 
-      const client = new TonClient({ endpoint });
-
-      const Pool_ADDRESS = "EQABFPp8oXtArlOkPbGlOLXsi9KUT7OWMJ1Eg0sLHY2R54RF";
-      const poolCoreAddress = Address.parse(Pool_ADDRESS);
-
-      const sampleJetton = client.open(PoolCore.fromAddress(poolCoreAddress));
-
-      await sampleJetton.send(
+      await factoryContract.send(
+        client.provider(factoryContract.address),
         sender,
         {
-          value: toNano(fromAmount),
+          value: toNano(totalAmount.toString()),
+          bounce: false
         },
         {
-          $$type: 'PoolBuy',
-          jettonAddress: Address.parse(token?.tokenAddress || '')
+          $$type: 'BuyFromPool',
+          jettonMasterAddress: Address.parse(token?.tokenAddress || '')
         }
       );
 
       toast.success('Buy transaction submitted!');
-      await getTokenPrice(); // Refresh price data
     } catch (error) {
       console.error('Error buying tokens:', error);
       toast.error('Failed to buy tokens');
@@ -541,44 +495,35 @@ export const TokenView = () => {
     }
   };
 
-  const SellJetton = async () => {
+  const handleSell = async () => {
     if (!tonConnectUI.connected) {
       toast.error('Please connect your wallet first');
       return;
     }
 
     try {
+      const client = getTonClient();
       setLoading(true);
       const sender = new TonConnectSender(tonConnectUI.connector);
+      const factoryAddress = Address.parse('EQDECvJ2XNXLC54lOtN6uH2QwxMHxRVHlSxAlZSJwYPfHBho');
+      const factoryContract = await JettonFactory.fromAddress(factoryAddress);
 
-      const endpoint = await getHttpEndpoint({
-        network: token?.networkType === 'testnet' ? "testnet" : "mainnet",
-      });
-
-      const client = new TonClient({ endpoint });
-
-      const Pool_ADDRESS = "EQABFPp8oXtArlOkPbGlOLXsi9KUT7OWMJ1Eg0sLHY2R54RF";
-      const poolCoreAddress = Address.parse(Pool_ADDRESS);
-
-      const sampleJetton = client.open(PoolCore.fromAddress(poolCoreAddress));
-
-      const TOKEN_AMOUNT = toNano(fromAmount); // Convert input amount to nano
-
-      await sampleJetton.send(
+      await factoryContract.send(
+        
+        client.provider(factoryContract.address),
         sender,
         {
           value: toNano('0.5'),
+          bounce: false
         },
         {
-          $$type: 'PoolSell',
-          jettonAddress: Address.parse(token?.tokenAddress || ''),
-          to: Address.parse(tonConnectUI.account!.address),
-          amount: TOKEN_AMOUNT,
+          $$type: 'SellFromPool',
+          jettonMasterAddress: Address.parse(token?.tokenAddress || ''),
+          amount: toNano(fromAmount)
         }
       );
 
       toast.success('Sell transaction submitted!');
-      await getTokenPrice(); // Refresh price data
     } catch (error) {
       console.error('Error selling tokens:', error);
       toast.error('Failed to sell tokens');
@@ -843,25 +788,8 @@ export const TokenView = () => {
                   {token.agentType}
                 </span>
                 <span className="px-2 py-0.5 text-xs bg-[#2C3E50] text-white rounded-full">
-                  {token.creatorAddress}
+                Token Address:  {token.tokenAddress}
                 </span>
-                <span className={`px-2 py-0.5 text-xs rounded-full ${
-                  isInPool 
-                    ? 'bg-[#4A90E2] text-white' 
-                    : 'bg-[#F5F7FA] text-[#2C3E50]'
-                }`}>
-                  {isInPool ? 'In Pool' : 'Not in Pool'}
-                </span>
-                {token.networkType === 'testnet' && (
-                  <span className="px-2 py-0.5 text-xs bg-[#F5F7FA] text-[#2C3E50] rounded-full">
-                    Testnet
-                  </span>
-                )}
-                {token.networkType === 'mainnet' && (
-                  <span className="px-2 py-0.5 text-xs bg-[#4A90E2] text-white rounded-full">
-                    Mainnet
-                  </span>
-                )}
               </div>
             </div>
           </div>
@@ -875,7 +803,7 @@ export const TokenView = () => {
               <div className="flex justify-between items-center">
                 <div>
                   <p className="text-sm text-[#2C3E50]">Price</p>
-                  <p className="text-2xl font-bold text-[#2C3E50]">${token.price?.toFixed(4) || '0.00'}</p>
+                  <p className="text-2xl font-bold text-[#2C3E50]">${'0.0001'}</p>
                 </div>
                 <div className="text-right">
                   <p className="text-sm text-[#2C3E50]">24h Change</p>
@@ -890,20 +818,13 @@ export const TokenView = () => {
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-[#2C3E50]">Bonding Curve Progress</span>
                   <div className="flex items-center gap-2">
-                    <span className="text-lg font-medium text-[#ffffff]">{token.liquidityProgress?.toFixed(1) || '0'}%</span>
-                    {token.inPool && (
-                      <span className="px-2 py-0.5 text-xs bg-[#ffffff] text-white rounded-full">
-                        In Pool
-                      </span>
-                    )}
+                    <span className="text-lg font-medium text-[#2350e4]">{token.liquidityProgress?.toFixed(1) || '0'}%</span>
                   </div>
                 </div>
               <div className="w-full h-4 bg-[#F5F7FA] rounded-full overflow-hidden">
                 <div 
-                  className="h-full bg-gradient-to-r from-[#4A90E2] to-[#6BB9F0] transition-all duration-500 ease-out"
-                  style={{ 
-                    width: `${Math.min(100, token.liquidityProgress || 0)}%`,
-                  }}
+                  className="h-full bg-gradient-to-r from-[#161616] to-[#6BB9F0] transition-all duration-500 ease-out"
+                
                 />
               </div>
               <div className="flex justify-between text-xs text-[#2C3E50] pt-1">
@@ -976,31 +897,28 @@ export const TokenView = () => {
                 </Button>
               ) : (
                 <>
-                  {/* Buy/Sell Tabs */}
-                  <div className="flex space-x-1 mb-4 bg-[#F5F7FA] p-1 rounded-lg">
-                    <button
-                      onClick={() => setTradeTab('buy')}
-                      className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors ${
-                        tradeTab === 'buy'
-                          ? 'bg-[#4A90E2] text-white'
-                          : 'text-[#2C3E50] hover:text-[#4A90E2]'
-                      }`}
-                    >
-                      Buy
-                    </button>
-                    <button
-                      onClick={() => setTradeTab('sell')}
-                      className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors ${
-                        tradeTab === 'sell'
-                          ? 'bg-[#4A90E2] text-white'
-                          : 'text-[#2C3E50] hover:text-[#4A90E2]'
-                      }`}
-                    >
-                      Sell
-                    </button>
-                  </div>
-
                   <div className="space-y-4">
+                    {/* Buy/Sell Tabs */}
+                    <div className="flex space-x-1 mb-4">
+                      <button
+                        onClick={() => setTradeTab('buy')}
+                        className={`flex-1 py-2 rounded-md ${
+                          tradeTab === 'buy' ? 'bg-[#4A90E2] text-white' : 'text-[#2C3E50]'
+                        }`}
+                      >
+                        Buy
+                      </button>
+                      <button
+                        onClick={() => setTradeTab('sell')}
+                        className={`flex-1 py-2 rounded-md ${
+                          tradeTab === 'sell' ? 'bg-[#4A90E2] text-white' : 'text-[#2C3E50]'
+                        }`}
+                      >
+                        Sell
+                      </button>
+                    </div>
+
+                    {/* Input Amount */}
                     <div className="bg-[#F5F7FA] rounded-lg p-4">
                       <div className="flex justify-between mb-2">
                         <span className="text-[#2C3E50]">
@@ -1021,7 +939,7 @@ export const TokenView = () => {
                           placeholder="0.0"
                           className="bg-transparent text-xl text-[#2C3E50] outline-none flex-1"
                         />
-                        <div className="flex items-center ">
+                        <div className="flex items-center">
                           {tradeTab === 'buy' ? (
                             <>
                               <img src="https://ton.org/download/ton_logo_light_background.png" alt="ton" className="w-6 h-6 rounded-full" />
@@ -1037,33 +955,54 @@ export const TokenView = () => {
                       </div>
                     </div>
 
+                    {/* Transaction Details */}
+                    {tradeTab === 'buy' && (
+                      <div className="space-y-2 text-sm text-[#2C3E50]">
+                        <div className="flex justify-between">
+                          <span>Amount</span>
+                          <span>{fromAmount || '0'} TON</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Transaction Fee</span>
+                          <span>{TRANSACTION_FEE} TON</span>
+                        </div>
+                        <div className="flex justify-between font-medium border-t pt-2">
+                          <span>Total</span>
+                          <span>{(parseFloat(fromAmount || '0') + TRANSACTION_FEE).toFixed(2)} TON</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Output Amount */}
                     <div className="bg-[#F5F7FA] rounded-lg p-4">
                       <div className="flex justify-between mb-2">
                         <span className="text-[#2C3E50]">
                           {tradeTab === 'buy' ? `Receive (${token?.symbol})` : 'Receive (TON)'}
                         </span>
                         <span className="text-[#2C3E50]">
-                          Price: 1 {token?.symbol} = {token?.price?.toFixed(4)} TON
+                          1 {token?.symbol} = {TOKEN_PRICE} TON
                         </span>
                       </div>
                       <div className="flex items-center">
-                    
                         <input
                           type="number"
                           placeholder="0.0"
-                          value={(parseFloat(fromAmount || '0') * (currentPrice || 0)).toFixed(4)}
+                          value={tradeTab === 'buy' 
+                            ? (parseFloat(fromAmount || '0') / TOKEN_PRICE).toFixed(4) // TON to Token
+                            : (parseFloat(fromAmount || '0') * TOKEN_PRICE).toFixed(4) // Token to TON
+                          }
                           disabled
                           className="bg-transparent text-xl text-[#2C3E50] outline-none flex-1"
                         />
-                        <div className="flex items-center gap-2 ml-2 px-4 py-2 rounded-lg bg-[#F5F7FA]">
+                        <div className="flex items-center gap-2 ml-2">
                           {tradeTab === 'buy' ? (
                             <>
-                              <img src={token?.imageUrl} alt={token?.symbol} className="w-6 h-6 -ml-6 rounded-full" />
+                              <img src={token?.imageUrl} alt={token?.symbol} className="w-6 h-6 rounded-full" />
                               <span className="text-[#2C3E50]">{token?.symbol}</span>
                             </>
                           ) : (
                             <>
-                              <img src="https://ton.org/download/ton_logo_light_background.png" alt="ton" className="w-6 h-6 -ml-5 rounded-full" />
+                              <img src="https://ton.org/download/ton_logo_light_background.png" alt="ton" className="w-6 h-6 rounded-full" />
                               <span className="text-[#2C3E50]">TON</span>
                             </>
                           )}
@@ -1071,53 +1010,16 @@ export const TokenView = () => {
                       </div>
                     </div>
 
-                    <div className="mt-4 space-y-2">
-                      <div className="flex justify-between text-sm text-[#2C3E50]">
-                        <span>Pool Liquidity</span>
-                        <div className="text-right">
-                          <div>{formatCurrency(Number(fromNano(tokenSupply || '0')))}</div>
-                          <div className="text-xs text-[#2C3E50]">
-                            {formatCurrency(Number(fromNano(tokenSupply || '0')) * tonPrice, 'USD')}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex justify-between text-sm text-[#2C3E50]">
-                        <span>Price Impact</span>
-                        <span>{((parseFloat(fromAmount || '0') / (parseFloat(tokenSupply || '0') + parseFloat(fromAmount || '0'))) * 100).toFixed(2)}%</span>
-                      </div>
-
-                      {/* Liquidity Progress Bar */}
-                      <div className="mt-4">
-                        <div className="flex justify-between text-sm text-[#2C3E50] mb-1">
-                          <span>Progress to DEX Migration</span>
-                          <div className="text-right">
-                            <div>{formatCurrency(liquidityProgress)}</div>
-                            <div className="text-xs text-[#2C3E50]">Target: {formatCurrency(10000)} ({formatCurrency(10000 * tonPrice, 'USD')})</div>
-                          </div>
-                        </div>
-                        <div className="w-full bg-[#F5F7FA] rounded-full h-2.5">
-                          <div 
-                            className="bg-[#4A90E2] h-2.5 rounded-full transition-all duration-300"
-                            style={{ width: `${Math.min(100, (liquidityProgress / 10000) * 100)}%` }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-
                     <Button 
-                      onClick={tradeTab === 'buy' ? BuyJetton : SellJetton}
+                      onClick={tradeTab === 'buy' ? handleBuy : handleSell}
                       disabled={loading || !fromAmount || !tonConnectUI.connected}
-                      className={`w-full ${
-                        tradeTab === 'buy' 
-                          ? 'bg-[#4A90E2] hover:bg-[#6BB9F0]' 
-                          : 'bg-[#4A90E2] hover:bg-[#6BB9F0]'
-                      }`}
+                      className="w-full bg-[#4A90E2] hover:bg-[#6BB9F0]"
                     >
                       {!tonConnectUI.connected 
                         ? 'Connect Wallet'
                         : loading 
                           ? 'Processing...' 
-                          : `${tradeTab === 'buy' ? 'Buy' : 'Sell'} ${token.symbol}`}
+                          : `${tradeTab === 'buy' ? `Buy for ${(parseFloat(fromAmount || '0') + TRANSACTION_FEE).toFixed(2)} TON` : `Sell ${token?.symbol}`}`}
                     </Button>
                   </div>
                 </>

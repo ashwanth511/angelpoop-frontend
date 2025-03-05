@@ -57,7 +57,7 @@ export const Footer: React.FC = () => {
                 </li>
                 <li>
                   <a href="#" className="text-base text-gray-500 hover:text-gray-900">
-                    Contact
+                    Join the Community
                   </a>
                 </li>
               </ul>

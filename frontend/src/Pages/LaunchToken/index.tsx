@@ -13,10 +13,17 @@ import axios from 'axios';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { buildOnchainMetadata } from '@/utils/jetton-helpers';
 import { TonClient } from '@ton/ton';
-import { JettonCore } from '@/wrappers/JettonCore';
 import TonConnectSender from '@/hooks/TonConnectSender';
 import { getHttpEndpoint } from "@orbs-network/ton-access";
 import { TokenData } from '@/types/types';
+import { JettonFactory } from '@/wrappers/tact_JettonFactory';
+import { getTonClient } from '../../services/ton-client';
+import { beginCell } from '@ton/core';
+import { contractAddress } from '@ton/core';
+import { JettonMasterTemplate } from '@/wrappers/tact_JettonMasterTemplate';
+import { sha256 } from '@/utils/crypto-helpers';
+import ReactConfetti from 'react-confetti';
+import { useWindowSize } from 'react-use';
 
 interface FormData {
   tokenName: string;
@@ -46,14 +53,14 @@ export const LaunchToken: React.FC = () => {
   const [tonConnectUI] = useTonConnectUI();
   const { network } = useNetwork();
   const { createAgent } = useAgentStore();
+  const { width, height } = useWindowSize();
   // const [val, setVal] = useState<null | number>(null);
   // const [showVal, setShowVal] = useState<boolean>(false);
 
   // Constants for token deployment
-  const Max_Supply: bigint = 100000000000000000000n;
-  const initial_Price: bigint = 10000n;
-  const iinitial_mint_Amount: bigint = 10000000000000n;
-  const PoolCore_ADDRESS = "EQABFPp8oXtArlOkPbGlOLXsi9KUT7OWMJ1Eg0sLHY2R54RF";
+  let initialTokens = toNano('100000');
+  let maxTokenSupply = 1000n * initialTokens;
+  let initialPrice = toNano('0.0001');
 
   const [step, setStep] = useState(1);
   const [isUploading, setIsUploading] = useState(false);
@@ -75,6 +82,9 @@ export const LaunchToken: React.FC = () => {
     twitter: '',
     projectDescription: '',
   });
+
+  // Add confetti state
+  const [showConfetti, setShowConfetti] = useState(false);
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -102,13 +112,14 @@ export const LaunchToken: React.FC = () => {
       const response = await axios.post('https://api.pinata.cloud/pinning/pinFileToIPFS', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
-          'pinata_api_key': 'c9a4d9a86b1b928093b0',
-          'pinata_secret_api_key': 'f5390adfe05b02de0427111b8f707ffe938b93dc00f8fa17ba34d20dfb306b7f',
+          'pinata_api_key': 'dcb9c6b82e9be7eb839c',
+          'pinata_secret_api_key': '8855c2a6ff3162c4ecb85a9421f581f97d98261f7ad0d0c9904f5732105177f3',
         },
       });
 
       const ipfsHash = response.data.IpfsHash;
-      return `https://gateway.pinata.cloud/ipfs/${ipfsHash}`;
+      // Use your actual Pinata subdomain
+      return `https://blue-static-marlin-360.mypinata.cloud/ipfs/${ipfsHash}`;
     } catch (error) {
       console.error('Error uploading to IPFS:', error);
       throw new Error('Failed to upload image to IPFS');
@@ -146,24 +157,26 @@ export const LaunchToken: React.FC = () => {
       
       if (!wallet) {
         toast.error('Please connect your TON wallet first');
+        setIsLoading(false);
         return;
       }
 
       if (!formData.tokenName || !formData.description || !formData.projectDescription || !formData.imageFile) {
         toast.error('Please fill in all required fields and upload an image');
+        setIsLoading(false);
         return;
       }
 
       // Upload image to IPFS
       let imageUrl = '';
-      if (formData.imageFile) {
-        try {
-          toast.loading('Uploading image to IPFS...');
-          imageUrl = await uploadToIPFS(formData.imageFile);
-        } catch (error) {
-          toast.error('Failed to upload image to IPFS');
-          return;
-        }
+      try {
+        toast.loading('Uploading image to IPFS...');
+        imageUrl = await uploadToIPFS(formData.imageFile);
+      } catch (error) {
+        console.error('Error uploading image to IPFS:', error);
+        toast.error('Failed to upload image to IPFS');
+        setIsLoading(false);
+        return;
       }
 
       // Check for existing tokens
@@ -174,6 +187,7 @@ export const LaunchToken: React.FC = () => {
         );
         if (tokenExists) {
           toast.error('A token with this name already exists');
+          setIsLoading(false);
           return;
         }
       }
@@ -188,51 +202,94 @@ export const LaunchToken: React.FC = () => {
           network: network === 'testnet' ? "testnet" : "mainnet",
         });
 
-        const client = new TonClient({ endpoint });
-        const poolCoreAddress = Address.parse(PoolCore_ADDRESS);
-
-        const jettonParams = {
-          name: formData.tokenName,
-          description: formData.description,
-          symbol: formData.tokenSymbol,
-          image: imageUrl, // Using the IPFS URL here
+        // Get TonClient and create a proper ContractProvider
+        const client = getTonClient();
+        
+        // Create proper metadata JSON for IPFS
+        const metadata = {
+          "name": formData.tokenName,
+          "description": formData.description,
+          "symbol": formData.tokenSymbol,
+          "image": imageUrl
         };
 
-        // Create content Cell
-        const content = buildOnchainMetadata(jettonParams);
+        // Upload metadata to IPFS with pretty formatting
+        const metadataBlob = new Blob([JSON.stringify(metadata, null, 4)], { type: 'application/json' });
+        const metadataFile = new File([metadataBlob], 'metadata.json');
+        console.log("Metadata content:", JSON.stringify(metadata, null, 4));
+        toast.loading('Uploading metadata to IPFS...');
+        const metadataUrl = await uploadToIPFS(metadataFile);
+        console.log("Metadata URL:", metadataUrl);
+        
+        // Initialize JettonFactory contract
+        try {
 
-        const sampleJetton = client.open(
-          await JettonCore.fromInit(
-            sender.address as Address,
-            content,
-            Max_Supply,
-            initial_Price,
-            iinitial_mint_Amount,
-            poolCoreAddress
-          )
-        );
+         // EQBmWR4EJgdZ9EbnFONcbSqdagvCEwMjvgSuXv5k4XlEjzjT
+          
+          const factoryAddress = Address.parse('EQDECvJ2XNXLC54lOtN6uH2QwxMHxRVHlSxAlZSJwYPfHBho');
+          const factoryContract = await JettonFactory.fromAddress(factoryAddress);
+          
+          console.log('Sending LaunchToken message to factory...');
+          
+          // Send the transaction to the factory
+          await factoryContract.send(
+            client.provider(factoryContract.address),
+            sender,
+            {
+              value: toNano('0.5'),
+              bounce: false 
+            },
+            {
+              $$type: 'LaunchToken',
+              content: {
+                $$type: 'Tep64TokenData',
+                flag: BigInt(1), // 1 for off-chain (IPFS) metadata
+                content: metadataUrl // Use the converted URL
+              }
+            }
+          );
 
-        // Get contract address before deployment
-        tokenAddress = sampleJetton.address.toString({
-          testOnly: network === 'testnet',
-          bounceable: true,
-          urlSafe: true
-        });
+          // Wait for the transaction to be processed
+          await new Promise(resolve => setTimeout(resolve, 10000));
+          
+          // Get the master contract address right after sending
+          const jettonMasterContract = await JettonMasterTemplate.fromInit(
+            factoryAddress,
+            
+            initialTokens,
+            maxTokenSupply,
+            initialPrice,
+            
+            {
+              $$type: 'Tep64TokenData',
+              flag: BigInt(1),
+              content: metadataUrl
+            }
+          );
+          const rawTokenAddress = jettonMasterContract.address.toString();
+          // Convert to bounceable format for testnet/mainnet
+          console.log('Raw token address:', rawTokenAddress);
+          tokenAddress = Address.parse(rawTokenAddress).toString(
 
-        await sampleJetton.send(
-          sender,
-          {
-            value: toNano('0.05'),
-          },
-          {
-            $$type: 'Deploy',
-            queryId: 0n
-          }
-        );
 
-        toast.success('Token contract deployed successfully!');
+            {
+              testOnly: network === 'testnet',
+              bounceable: true,
+              urlSafe: true
+            }
+          );
+
+          console.log('Token address:', tokenAddress);
+          console.log('Transaction sent. Token should appear in your wallet soon.');
+          toast.success('Token launch transaction sent successfully!');
+        } catch (error) {
+          console.error('Error deploying contract:', error);
+          toast.error('Failed to deploy token contract');
+          setIsLoading(false);
+          return;
+        }
       } catch (error) {
-        console.error('Error deploying contract:', error);
+        console.error('Error in contract deployment process:', error);
         toast.error('Failed to deploy token contract');
         setIsLoading(false);
         return;
@@ -244,7 +301,7 @@ export const LaunchToken: React.FC = () => {
       const tokenData: TokenData = {
         name: formData.tokenName,
         symbol: formData.tokenSymbol,
-        totalSupply: Max_Supply.toString(),
+        totalSupply: maxTokenSupply.toString(),
         description: formData.description,
         projectDescription: formData.projectDescription,
         agentType: formData.agentType,
@@ -254,7 +311,7 @@ export const LaunchToken: React.FC = () => {
         tokenAddress,
         liquidityProgress: 0,
         _id: '',
-        decimals: 0,
+        decimals: 9,
         price: 0,
         priceChange24h: 0,
         marketCap: 0,
@@ -310,10 +367,12 @@ export const LaunchToken: React.FC = () => {
             id: response.token._id
           });
           toast.success('🚀 Token launched successfully!');
+          setShowConfetti(true); // Start confetti
           setShowSuccessModal(true);
           
-          // Navigate after a delay
+          // Navigate after a delay and stop confetti
           setTimeout(() => {
+            setShowConfetti(false);
             navigate(`/token/${response.token._id}`);
           }, 3000);
         } else {
@@ -493,122 +552,133 @@ export const LaunchToken: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#FFFFFF] text-[#2C3E50]">
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-[#2C3E50]">Launch New Token</h1>
-        </div>
-
-        <Card className="max-w-3xl mx-auto p-6 bg-[#F5F7FA] border border-[#4A90E2]">
-          <div className="mb-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold text-[#2C3E50]">
-                {step === 1 ? 'Token Information' : 'Project Information'}
-              </h2>
-              <div className="text-sm text-[#2C3E50]">Step {step} of 2</div>
-            </div>
-
-            <div className="flex mb-6">
-              <div className="w-full bg-[#4A90E2] h-2 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-[#6BB9F0] transition-all duration-300"
-                  style={{ width: `${step * 50}%` }}
-                />
-              </div>
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {step === 1 ? renderStep1() : renderStep2()}
-
-              <div className="flex justify-between pt-4">
-                {step === 2 && (
-                  <Button
-                    type="button"
-                    onClick={handlePrevStep}
-                    className="bg-[#F5F7FA] text-[#2C3E50] border border-[#4A90E2] hover:bg-white"
-                  >
-                    Previous Step
-                  </Button>
-                )}
-                
-                {step === 1 ? (
-                  <Button
-                    type="button"
-                    onClick={handleNextStep}
-                    className="bg-[#4A90E2] text-white hover:bg-[#6BB9F0]"
-                  >
-                    Next Step
-                  </Button>
-                ) : (
-                  <Button
-                    type="submit"
-                    disabled={isLoading}
-                    className={`bg-[#4A90E2] text-white hover:bg-[#6BB9F0] ${
-                      isLoading ? 'opacity-50 cursor-not-allowed' : ''
-                    }`}
-                  >
-                    {isLoading ? (
-                      <div className="flex items-center">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        Launching...
-                      </div>
-                    ) : (
-                      'Launch Token'
-                    )}
-                  </Button>
-                )}
-              </div>
-            </form>
+    <div className="relative">
+      {showConfetti && (
+        <ReactConfetti
+          width={width}
+          height={height}
+          numberOfPieces={200}
+          recycle={false}
+          colors={['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEEAD']}
+        />
+      )}
+      <div className="min-h-screen bg-[#FFFFFF] text-[#2C3E50]">
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex justify-between items-center mb-8">
+            <h1 className="text-3xl font-bold text-[#2C3E50]">Launch New Token</h1>
           </div>
-        </Card>
 
-        {/* Success Modal */}
-        <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
-          <DialogContent className="bg-[#FFFFFF] text-[#2C3E50] p-6 rounded-lg">
-            <DialogHeader>
-              <DialogTitle className="text-2xl font-bold text-[#2C3E50] mb-2">Token Launch Successful!</DialogTitle>
-              <DialogDescription className="text-[#2C3E50]">
-                Your token has been successfully launched.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="mt-4 space-y-4">
-              {launchedToken && (
-                <>
-                  <div>
-                    <p className="font-medium">Token Name:</p>
-                    <p>{launchedToken.name}</p>
-                  </div>
-                  <div>
-                    <p className="font-medium">Agent Type:</p>
-                    <p>{launchedToken.agentType}</p>
-                  </div>
-                </>
-              )}
-              <div className="flex justify-end space-x-4 mt-6">
-                <Button
-                  onClick={() => {
-                    setShowSuccessModal(false);
-                    navigate('/dashboard');
-                  }}
-                  className="bg-[#4A90E2] text-white hover:bg-[#6BB9F0]"
-                >
-                  Go to Dashboard
-                </Button>
+          <Card className="max-w-3xl mx-auto p-6 bg-[#F5F7FA] border border-[#4A90E2]">
+            <div className="mb-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold text-[#2C3E50]">
+                  {step === 1 ? 'Token Information' : 'Project Information'}
+                </h2>
+                <div className="text-sm text-[#2C3E50]">Step {step} of 2</div>
+              </div>
+
+              <div className="flex mb-6">
+                <div className="w-full bg-[#4A90E2] h-2 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-[#6BB9F0] transition-all duration-300"
+                    style={{ width: `${step * 50}%` }}
+                  />
+                </div>
+              </div>
+
+              <form onSubmit={handleSubmit} className="space-y-6">
+                {step === 1 ? renderStep1() : renderStep2()}
+
+                <div className="flex justify-between pt-4">
+                  {step === 2 && (
+                    <Button
+                      type="button"
+                      onClick={handlePrevStep}
+                      className="bg-[#F5F7FA] text-[#2C3E50] border border-[#4A90E2] hover:bg-white"
+                    >
+                      Previous Step
+                    </Button>
+                  )}
+                  
+                  {step === 1 ? (
+                    <Button
+                      type="button"
+                      onClick={handleNextStep}
+                      className="bg-[#4A90E2] text-white hover:bg-[#6BB9F0]"
+                    >
+                      Next Step
+                    </Button>
+                  ) : (
+                    <Button
+                      type="submit"
+                      disabled={isLoading}
+                      className={`bg-[#4A90E2] text-white hover:bg-[#6BB9F0] ${
+                        isLoading ? 'opacity-50 cursor-not-allowed' : ''
+                      }`}
+                    >
+                      {isLoading ? (
+                        <div className="flex items-center">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Launching...
+                        </div>
+                      ) : (
+                        'Launch Token'
+                      )}
+                    </Button>
+                  )}
+                </div>
+              </form>
+            </div>
+          </Card>
+
+          {/* Success Modal */}
+          <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
+            <DialogContent className="bg-[#FFFFFF] text-[#2C3E50] p-6 rounded-lg">
+              <DialogHeader>
+                <DialogTitle className="text-2xl font-bold text-[#2C3E50] mb-2">Token Launch Successful!</DialogTitle>
+                <DialogDescription className="text-[#2C3E50]">
+                  Your token has been successfully launched.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="mt-4 space-y-4">
                 {launchedToken && (
+                  <>
+                    <div>
+                      <p className="font-medium">Token Name:</p>
+                      <p>{launchedToken.name}</p>
+                    </div>
+                    <div>
+                      <p className="font-medium">Agent Type:</p>
+                      <p>{launchedToken.agentType}</p>
+                    </div>
+                  </>
+                )}
+                <div className="flex justify-end space-x-4 mt-6">
                   <Button
                     onClick={() => {
                       setShowSuccessModal(false);
-                      navigate(`/token/${launchedToken.id}`);
+                      navigate('/dashboard');
                     }}
                     className="bg-[#4A90E2] text-white hover:bg-[#6BB9F0]"
                   >
-                    View Token
+                    Go to Dashboard
                   </Button>
-                )}
+                  {launchedToken && (
+                    <Button
+                      onClick={() => {
+                        setShowSuccessModal(false);
+                        navigate(`/token/${launchedToken.id}`);
+                      }}
+                      className="bg-[#4A90E2] text-white hover:bg-[#6BB9F0]"
+                    >
+                      View Token
+                    </Button>
+                  )}
+                </div>
               </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
     </div>
   );
